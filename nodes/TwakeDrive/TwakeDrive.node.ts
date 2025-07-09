@@ -49,6 +49,11 @@ export class TwakeDrive implements INodeType {
 						value: 'listFiles',
 						description: 'List all files in the Twake instance.',
 					},
+					{
+						name: 'Upload File',
+						value: 'uploadFile',
+						description: 'Upload a receveid file in the Twake instance in designated directory',
+					},
 				],
 				default: 'listFiles',
 				description: 'Operation to perform.',
@@ -77,14 +82,14 @@ export class TwakeDrive implements INodeType {
 			},
 
 			{
-				displayName: 'File ID',
+				displayName: 'File or directory ID',
 				name: 'fileId',
 				type: 'string',
-				default: '8a2feef6b0c5eb25892bd0a57e05b712',
-				description: 'ID of the file or directory to retrieve.',
+				default: 'e863001c7182d8ee4f791a71fd009f33',
+				description: 'ID of the targeted file or directory.',
 				displayOptions: {
 					show: {
-						operation: ['getOneFile'],
+						operation: ['getOneFile', 'uploadFile'],
 					},
 				},
 			},
@@ -113,16 +118,13 @@ export class TwakeDrive implements INodeType {
 						break;
 
 					case 'getOneFile':
-						token = items[itemIndex].json.realToken as string;
-						await TwakeHelpers.getOneFile.call(this, itemIndex, ezlog, token);
+						await TwakeHelpers.getOneFile.call(this, itemIndex, items, ezlog);
 						break;
 					case 'listFiles':
-						token = items[itemIndex].json.realToken as string;
-						await TwakeHelpers.listFiles.call(this, itemIndex, ezlog, token);
+						await TwakeHelpers.listFiles.call(this, itemIndex, items, ezlog);
 						break;
 					case 'uploadFile':
-						token = items[itemIndex].json.realToken as string;
-						await TwakeHelpers.uploadFile.call(this, itemIndex, ezlog, token);
+						await TwakeHelpers.uploadFile.call(this, itemIndex, items, ezlog);
 						break;
 				}
 			} catch (error) {

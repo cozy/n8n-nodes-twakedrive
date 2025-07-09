@@ -1,4 +1,4 @@
-import { IExecuteFunctions } from 'n8n-workflow';
+import { IExecuteFunctions, INodeExecutionData, NodeOperationError } from 'n8n-workflow';
 
 export async function getRealToken(
 	this: IExecuteFunctions,
@@ -37,7 +37,6 @@ export async function getRealToken(
 		},
 		json: true,
 	});
-	ezlog('permissionsUrl', permissionsUrl);
 	const realToken = tokenResponse.data.attributes.codes.n8n;
 	ezlog('realToken', realToken);
 
@@ -47,12 +46,13 @@ export async function getRealToken(
 export async function getOneFile(
 	this: IExecuteFunctions,
 	itemIndex: number,
+	items: INodeExecutionData[],
 	ezlog: (name: string, value: any) => void,
-	realToken: string,
 ) {
 	const instanceUrl = this.getNodeParameter('instanceUrl', itemIndex, '') as string;
 	const fileId = this.getNodeParameter('fileId', itemIndex, '') as string;
 	const fileUrl = `${instanceUrl}/files/${fileId}`;
+	const realToken = items[itemIndex].json.realToken;
 	const fileResponse = await this.helpers.httpRequest({
 		method: 'GET',
 		url: fileUrl,
@@ -69,12 +69,12 @@ export async function getOneFile(
 export async function listFiles(
 	this: IExecuteFunctions,
 	itemIndex: number,
+	items: INodeExecutionData[],
 	ezlog: (name: string, value: any) => void,
-	realToken: string,
 ) {
 	const instanceUrl = this.getNodeParameter('instanceUrl', itemIndex, '') as string;
 	const fileListUrl = `${instanceUrl}/data/io.cozy.files/_all_docs?include_docs=true&Fields=name,metadata,type,id,cozyMetadata`;
-	// const fileListUrl = `${instanceUrl}/data/io.cozy.files/_all_docs?include_docs=true`;
+	const realToken = items[itemIndex].json.realToken;
 	const filesListResponse = await this.helpers.httpRequest({
 		method: 'GET',
 		url: fileListUrl,
@@ -89,18 +89,19 @@ export async function listFiles(
 	const wantedFilesArray = [];
 	for (let i = 0; i < docsArray.length; i++) {
 		// Skipping directories
-		if (docsArray[i].doc.type === 'directory') continue;
-		const filename = docsArray[i].doc.name;
-		const id = docsArray[i].id;
-		const uploadedBy = docsArray[i].doc.cozyMetadata?.uploadedBy.slug;
-		const metadata = docsArray[i].doc.metadata;
-		const oneFile = {
-			filename,
-			id,
-			uploadedBy,
-			metadata,
-		};
-		wantedFilesArray.push(oneFile);
+		// if (docsArray[i].doc.type === 'directory') continue;
+		// const filename = docsArray[i].doc.name;
+		// const id = docsArray[i].id;
+		// const uploadedBy = docsArray[i].doc.cozyMetadata?.uploadedBy.slug;
+		// const metadata = docsArray[i].doc.metadata;
+		// const oneFile = {
+		// 	filename,
+		// 	id,
+		// 	uploadedBy,
+		// 	metadata,
+		// };
+		wantedFilesArray.push(docsArray[i]);
+		// wantedFilesArray.push(oneFile);
 	}
 	// ezlog('filesList', wantedFilesArray);
 	return { wantedFilesArray };
@@ -109,39 +110,45 @@ export async function listFiles(
 export async function uploadFile(
 	this: IExecuteFunctions,
 	itemIndex: number,
+	items: INodeExecutionData[],
 	ezlog: (name: string, value: any) => void,
-	realToken: string,
 ) {
 	const instanceUrl = this.getNodeParameter('instanceUrl', itemIndex, '') as string;
-	const fileListUrl = `${instanceUrl}/data/io.cozy.files/_all_docs?include_docs=true&Fields=name,metadata,type,id,cozyMetadata`;
-	// const fileListUrl = `${instanceUrl}/data/io.cozy.files/_all_docs?include_docs=true`;
-	const filesListResponse = await this.helpers.httpRequest({
-		method: 'GET',
-		url: fileListUrl,
+	const fileId = this.getNodeParameter('fileId', itemIndex, '') as string;
+	const fileUrl = `${instanceUrl}/files/${fileId}`;
+	const binPropName = this.getNodeParameter('binaryPropertyName', itemIndex, 'data');
+	const binaryData = items[itemIndex].binary?.[binPropName];
+	const realToken = items[itemIndex].json.realToken;
+
+	if (!binaryData) {
+		throw new NodeOperationError(this.getNode(), 'Binary data not found', { itemIndex });
+	}
+
+	const fileName = binaryData.fileName;
+	const fileData = binaryData.data;
+	const mimeType = binaryData.mimeType;
+
+	// Ensuite tu décode en buffer
+	const fileBuffer = Buffer.from(fileData, 'base64');
+
+	const createdFileResponse = await this.helpers.httpRequest({
+		method: 'POST',
+		url: fileUrl,
 		headers: {
 			Authorization: `Bearer ${realToken}`,
-			Accept: 'application/json',
+			Accept: 'application/vnd.api+json',
+			'Content-Type': mimeType,
 		},
-		json: true,
+		qs: {
+			Name: fileName,
+			Type: 'file',
+		},
+		body: fileBuffer,
 	});
-	ezlog('fileListResponse', filesListResponse);
-	const docsArray = filesListResponse.rows;
-	const wantedFilesArray = [];
-	for (let i = 0; i < docsArray.length; i++) {
-		// Skipping directories
-		if (docsArray[i].doc.type === 'directory') continue;
-		const filename = docsArray[i].doc.name;
-		const id = docsArray[i].id;
-		const uploadedBy = docsArray[i].doc.cozyMetadata?.uploadedBy.slug;
-		const metadata = docsArray[i].doc.metadata;
-		const oneFile = {
-			filename,
-			id,
-			uploadedBy,
-			metadata,
-		};
-		wantedFilesArray.push(oneFile);
-	}
+	ezlog('createFileResponse', createdFileResponse);
+	const createdFileId = createdFileResponse.data.id;
+	ezlog('createdFileID', createdFileId);
+
 	// ezlog('filesList', wantedFilesArray);
-	return { wantedFilesArray };
+	return { createdFileId };
 }
