@@ -50,7 +50,7 @@ export async function getOneFile(
 	ezlog: (name: string, value: any) => void,
 ) {
 	const instanceUrl = this.getNodeParameter('instanceUrl', itemIndex, '') as string;
-	const fileId = this.getNodeParameter('fileId', itemIndex, '') as string;
+	const fileId = this.getNodeParameter('fileOrDirId', itemIndex, '') as string;
 	const fileUrl = `${instanceUrl}/files/${fileId}`;
 	const realToken = items[itemIndex].json.realToken;
 	const fileResponse = await this.helpers.httpRequest({
@@ -151,4 +151,37 @@ export async function uploadFile(
 
 	// ezlog('filesList', wantedFilesArray);
 	return { createdFileId };
+}
+
+export async function copyFile(
+	this: IExecuteFunctions,
+	itemIndex: number,
+	items: INodeExecutionData[],
+	ezlog: (name: string, value: any) => void,
+): Promise<void> {
+	const instanceUrl = this.getNodeParameter('instanceUrl', itemIndex, '') as string;
+	const fileId = this.getNodeParameter('fileId', itemIndex) as string;
+	const dirId = this.getNodeParameter('dirId', itemIndex) as string;
+	const newName = this.getNodeParameter('newName', itemIndex) as string;
+	const realToken = items[itemIndex].json.realToken as string;
+	const qs: Record<string, string> = {};
+
+	if (dirId) {
+		qs.DirID = dirId;
+	}
+	if (newName) {
+		qs.Name = newName;
+	}
+
+	const copiedFile = await this.helpers.request({
+		method: 'POST',
+		uri: `${instanceUrl}/files/${fileId}/copy`,
+		headers: {
+			Authorization: `Bearer ${realToken}`,
+			'Content-Type': 'application/json',
+		},
+		qs,
+		json: true,
+	});
+	ezlog('copiedFile', copiedFile);
 }

@@ -54,6 +54,12 @@ export class TwakeDrive implements INodeType {
 						value: 'uploadFile',
 						description: 'Upload a receveid file in the Twake instance in designated directory',
 					},
+					{
+						name: 'Copy File',
+						value: 'copyFile',
+						description:
+							'Copy the selected file in the Twake instance in the targeted directory if any',
+					},
 				],
 				default: 'listFiles',
 				description: 'Operation to perform.',
@@ -76,20 +82,86 @@ export class TwakeDrive implements INodeType {
 				description: 'Token used to access Twake API.',
 				displayOptions: {
 					show: {
-						operation: ['getOneFile', 'listFiles'],
+						operation: ['getOneFile', 'listFiles', 'copyFile'],
 					},
 				},
 			},
 
 			{
-				displayName: 'File or directory ID',
-				name: 'fileId',
+				displayName: 'File or Directory ID',
+				name: 'fileOrDirId',
 				type: 'string',
-				default: 'e863001c7182d8ee4f791a71fd009f33',
+				default: 'e863001c7182d8ee4f791a71fd379559',
 				description: 'ID of the targeted file or directory.',
 				displayOptions: {
 					show: {
-						operation: ['getOneFile', 'uploadFile'],
+						operation: ['getOneFile'],
+					},
+				},
+			},
+
+			{
+				displayName: 'File ID',
+				name: 'fileId',
+				type: 'string',
+				default: 'e863001c7182d8ee4f791a71fd379559',
+				description: 'ID of the targeted file.',
+				displayOptions: {
+					show: {
+						operation: ['uploadFile', 'copyFile'],
+					},
+				},
+			},
+
+			{
+				displayName: 'Choose destination folder',
+				name: 'customDir',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						operation: ['copyFile'],
+					},
+				},
+			},
+
+			{
+				displayName: 'Directory ID',
+				name: 'dirId',
+				type: 'string',
+				default: '03feda4a1b0d82e0cf637a2bcb00acfd',
+				description: 'ID of the targeted directory.',
+				displayOptions: {
+					show: {
+						operation: ['copyFile'],
+						customDir: [true],
+					},
+				},
+			},
+
+			{
+				displayName: 'Name of the new file',
+				name: 'customName',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						operation: ['copyFile'],
+					},
+				},
+			},
+
+			{
+				displayName: 'New Name',
+				name: 'newName',
+				type: 'string',
+				default: '',
+				placeholder: 'file(copy).pdf',
+				description: 'Optional new name for the copied file or folder.',
+				displayOptions: {
+					show: {
+						operation: ['copyFile'],
+						customName: [true],
 					},
 				},
 			},
@@ -116,7 +188,6 @@ export class TwakeDrive implements INodeType {
 						token = credentials.apiToken as string;
 						await TwakeHelpers.getRealToken.call(this, itemIndex, ezlog, token);
 						break;
-
 					case 'getOneFile':
 						await TwakeHelpers.getOneFile.call(this, itemIndex, items, ezlog);
 						break;
@@ -125,6 +196,9 @@ export class TwakeDrive implements INodeType {
 						break;
 					case 'uploadFile':
 						await TwakeHelpers.uploadFile.call(this, itemIndex, items, ezlog);
+						break;
+					case 'copyFile':
+						await TwakeHelpers.copyFile.call(this, itemIndex, items, ezlog);
 						break;
 				}
 			} catch (error) {
