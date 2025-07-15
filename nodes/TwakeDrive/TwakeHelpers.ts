@@ -26,7 +26,7 @@ export async function getRealToken(
 						'io.cozy.files': {
 							description: 'Access your files',
 							type: 'io.cozy.files',
-							verbs: ['GET', 'POST'],
+							verbs: ['ALL'],
 						},
 					},
 				},
@@ -184,4 +184,27 @@ export async function copyFile(
 		json: true,
 	});
 	ezlog('copiedFile', copiedFile);
+}
+
+export async function deleteFile(
+	this: IExecuteFunctions,
+	itemIndex: number,
+	items: INodeExecutionData[],
+	ezlog: (name: string, value: any) => void,
+) {
+	const instanceUrl = this.getNodeParameter('instanceUrl', itemIndex, '') as string;
+	const fileId = this.getNodeParameter('fileOrDirId', itemIndex, '') as string;
+	const fileUrl = `${instanceUrl}/files/${fileId}`;
+	const realToken = items[itemIndex].json.realToken;
+	const deletedFileResponse = await this.helpers.httpRequest({
+		method: 'DELETE',
+		url: fileUrl,
+		headers: {
+			Authorization: `Bearer ${realToken}`,
+			Accept: 'application/vnd.api+json',
+		},
+		json: true,
+	});
+	ezlog('deletedFileResponse', deletedFileResponse);
+	return { deletedFileResponse };
 }

@@ -60,6 +60,11 @@ export class TwakeDrive implements INodeType {
 						description:
 							'Copy the selected file in the Twake instance in the targeted directory if any',
 					},
+					{
+						name: 'Delete File',
+						value: 'deleteFile',
+						description: 'Delete the selected file in the Twake instance',
+					},
 				],
 				default: 'listFiles',
 				description: 'Operation to perform.',
@@ -95,7 +100,7 @@ export class TwakeDrive implements INodeType {
 				description: 'ID of the targeted file or directory.',
 				displayOptions: {
 					show: {
-						operation: ['getOneFile'],
+						operation: ['getOneFile', 'deleteFile'],
 					},
 				},
 			},
@@ -157,7 +162,7 @@ export class TwakeDrive implements INodeType {
 				type: 'string',
 				default: '',
 				placeholder: 'file(copy).pdf',
-				description: 'Optional new name for the copied file or folder.',
+				description: 'New name for the copied file or folder.',
 				displayOptions: {
 					show: {
 						operation: ['copyFile'],
@@ -199,6 +204,9 @@ export class TwakeDrive implements INodeType {
 						break;
 					case 'copyFile':
 						await TwakeHelpers.copyFile.call(this, itemIndex, items, ezlog);
+						break;
+					case 'deleteFile':
+						await TwakeHelpers.deleteFile.call(this, itemIndex, items, ezlog);
 						break;
 				}
 			} catch (error) {
