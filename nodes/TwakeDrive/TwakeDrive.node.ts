@@ -65,6 +65,11 @@ export class TwakeDrive implements INodeType {
 						value: 'deleteFile',
 						description: 'Delete the selected file in the Twake instance',
 					},
+					{
+						name: 'Create file from text',
+						value: 'createFileFromText',
+						description: 'Create a new text file with given text',
+					},
 				],
 				default: 'listFiles',
 				description: 'Operation to perform.',
@@ -87,7 +92,7 @@ export class TwakeDrive implements INodeType {
 				description: 'Token used to access Twake API.',
 				displayOptions: {
 					show: {
-						operation: ['getOneFile', 'listFiles', 'copyFile'],
+						operation: ['getOneFile', 'listFiles', 'copyFile', 'createFileFromText'],
 					},
 				},
 			},
@@ -125,7 +130,7 @@ export class TwakeDrive implements INodeType {
 				default: false,
 				displayOptions: {
 					show: {
-						operation: ['copyFile'],
+						operation: ['copyFile', 'createFileFromText'],
 					},
 				},
 			},
@@ -138,8 +143,37 @@ export class TwakeDrive implements INodeType {
 				description: 'ID of the targeted directory.',
 				displayOptions: {
 					show: {
-						operation: ['copyFile'],
+						operation: ['copyFile', 'createFileFromText'],
 						customDir: [true],
+					},
+				},
+			},
+
+			{
+				displayName: 'New Name',
+				name: 'newName',
+				type: 'string',
+				default: '',
+				placeholder: 'file(copy).pdf',
+				description: 'New name for the copied file or folder.',
+				displayOptions: {
+					show: {
+						operation: ['copyFile'],
+						customName: [true],
+					},
+				},
+			},
+
+			{
+				displayName: 'New Name',
+				name: 'newName',
+				type: 'string',
+				default: '',
+				placeholder: 'myNewFile.txt',
+				description: 'New name for the created file',
+				displayOptions: {
+					show: {
+						operation: ['createFileFromText'],
 					},
 				},
 			},
@@ -157,16 +191,17 @@ export class TwakeDrive implements INodeType {
 			},
 
 			{
-				displayName: 'New Name',
-				name: 'newName',
+				displayName: 'Text',
+				name: 'textContent',
 				type: 'string',
 				default: '',
-				placeholder: 'file(copy).pdf',
-				description: 'New name for the copied file or folder.',
+				description: 'Text content of the new file.',
+				typeOptions: {
+					rows: 5,
+				},
 				displayOptions: {
 					show: {
-						operation: ['copyFile'],
-						customName: [true],
+						operation: ['createFileFromText'],
 					},
 				},
 			},
@@ -207,6 +242,9 @@ export class TwakeDrive implements INodeType {
 						break;
 					case 'deleteFile':
 						await TwakeHelpers.deleteFile.call(this, itemIndex, items, ezlog);
+						break;
+					case 'createFileFromText':
+						await TwakeHelpers.createFileFromText.call(this, itemIndex, items, ezlog);
 						break;
 				}
 			} catch (error) {

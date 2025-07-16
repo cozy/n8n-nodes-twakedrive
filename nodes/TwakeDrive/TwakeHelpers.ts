@@ -208,3 +208,37 @@ export async function deleteFile(
 	ezlog('deletedFileResponse', deletedFileResponse);
 	return { deletedFileResponse };
 }
+
+export async function createFileFromText(
+	this: IExecuteFunctions,
+	itemIndex: number,
+	items: INodeExecutionData[],
+	ezlog: (name: string, value: any) => void,
+) {
+	const instanceUrl = this.getNodeParameter('instanceUrl', itemIndex, '') as string;
+	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
+	ezlog('dirID', dirId);
+	const textContent = this.getNodeParameter('textContent', itemIndex, '') as string;
+	ezlog('textContent', textContent);
+	const fileName = this.getNodeParameter('newName', itemIndex, '') as string;
+	ezlog('filename', fileName);
+	const fileUrl = `${instanceUrl}/files/${dirId}`;
+	ezlog('fileUrl', fileUrl);
+	const realToken = items[itemIndex].json.realToken;
+	const createdFileResponse = await this.helpers.httpRequest({
+		method: 'POST',
+		url: fileUrl,
+		headers: {
+			Authorization: `Bearer ${realToken}`,
+			Accept: 'application/vnd.api+json',
+			// 'Content-Type': 'text/plain',
+		},
+		qs: {
+			Name: fileName,
+			Type: 'file',
+		},
+		body: textContent,
+	} as any);
+	ezlog('createdFileResponse', createdFileResponse);
+	return { createdFileResponse };
+}
