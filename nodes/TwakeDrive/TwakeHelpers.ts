@@ -231,7 +231,6 @@ export async function createFileFromText(
 		headers: {
 			Authorization: `Bearer ${realToken}`,
 			Accept: 'application/vnd.api+json',
-			// 'Content-Type': 'text/plain',
 		},
 		qs: {
 			Name: fileName,
@@ -241,4 +240,38 @@ export async function createFileFromText(
 	} as any);
 	ezlog('createdFileResponse', createdFileResponse);
 	return { createdFileResponse };
+}
+
+export async function moveFile(
+	this: IExecuteFunctions,
+	itemIndex: number,
+	items: INodeExecutionData[],
+	ezlog: (name: string, value: any) => void,
+) {
+	const instanceUrl = this.getNodeParameter('instanceUrl', itemIndex, '') as string;
+	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
+	ezlog('dirID', dirId);
+	const fileId = this.getNodeParameter('fileId', itemIndex, '') as string;
+	const fileUrl = `${instanceUrl}/files/${fileId}`;
+	ezlog('fileUrl', fileUrl);
+	const realToken = items[itemIndex].json.realToken;
+
+	const movedFileResponse = await this.helpers.httpRequest({
+		method: 'PATCH',
+		url: fileUrl,
+		headers: {
+			Authorization: `Bearer ${realToken}`,
+			Accept: 'application/vnd.api+json',
+			'Content-Type': 'application/vnd.api+json',
+		},
+		body: JSON.stringify({
+			data: {
+				attributes: {
+					dir_id: dirId,
+				},
+			},
+		}),
+	});
+	ezlog('movedFileResponse', movedFileResponse);
+	return { movedFileResponse };
 }

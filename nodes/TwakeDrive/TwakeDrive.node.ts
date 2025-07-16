@@ -70,6 +70,11 @@ export class TwakeDrive implements INodeType {
 						value: 'createFileFromText',
 						description: 'Create a new text file with given text',
 					},
+					{
+						name: 'Move File',
+						value: 'moveFile',
+						description: 'Move the targeted file to another directory',
+					},
 				],
 				default: 'listFiles',
 				description: 'Operation to perform.',
@@ -118,7 +123,7 @@ export class TwakeDrive implements INodeType {
 				description: 'ID of the targeted file.',
 				displayOptions: {
 					show: {
-						operation: ['uploadFile', 'copyFile'],
+						operation: ['uploadFile', 'copyFile', 'moveFile'],
 					},
 				},
 			},
@@ -130,7 +135,7 @@ export class TwakeDrive implements INodeType {
 				default: false,
 				displayOptions: {
 					show: {
-						operation: ['copyFile', 'createFileFromText'],
+						operation: ['copyFile', 'createFileFromText', 'moveFile'],
 					},
 				},
 			},
@@ -143,7 +148,7 @@ export class TwakeDrive implements INodeType {
 				description: 'ID of the targeted directory.',
 				displayOptions: {
 					show: {
-						operation: ['copyFile', 'createFileFromText'],
+						operation: ['copyFile', 'createFileFromText', 'moveFile'],
 						customDir: [true],
 					},
 				},
@@ -245,6 +250,9 @@ export class TwakeDrive implements INodeType {
 						break;
 					case 'createFileFromText':
 						await TwakeHelpers.createFileFromText.call(this, itemIndex, items, ezlog);
+						break;
+					case 'moveFile':
+						await TwakeHelpers.moveFile.call(this, itemIndex, items, ezlog);
 						break;
 				}
 			} catch (error) {
