@@ -121,14 +121,15 @@ export async function uploadFile(
 	const realToken = items[itemIndex].json.realToken;
 
 	if (!binaryData) {
-		throw new NodeOperationError(this.getNode(), 'Binary data not found', { itemIndex });
+		throw new NodeOperationError(this.getNode(), 'UploadFile - Binary data not found', {
+			itemIndex,
+		});
 	}
 
 	const fileName = binaryData.fileName;
 	const fileData = binaryData.data;
 	const mimeType = binaryData.mimeType;
 
-	// Ensuite tu décode en buffer
 	const fileBuffer = Buffer.from(fileData, 'base64');
 
 	const createdFileResponse = await this.helpers.httpRequest({
@@ -162,7 +163,10 @@ export async function copyFile(
 	const instanceUrl = this.getNodeParameter('instanceUrl', itemIndex, '') as string;
 	const fileId = this.getNodeParameter('fileId', itemIndex) as string;
 	const dirId = this.getNodeParameter('dirId', itemIndex) as string;
-	const newName = this.getNodeParameter('newName', itemIndex) as string;
+	const wantsCustomName = this.getNodeParameter('customName', itemIndex) as boolean;
+	const newName = wantsCustomName
+		? (this.getNodeParameter('newName', itemIndex) as string)
+		: undefined;
 	const realToken = items[itemIndex].json.realToken as string;
 	const qs: Record<string, string> = {};
 
@@ -274,4 +278,73 @@ export async function moveFile(
 	});
 	ezlog('movedFileResponse', movedFileResponse);
 	return { movedFileResponse };
+}
+
+export async function updateFile(
+	this: IExecuteFunctions,
+	itemIndex: number,
+	items: INodeExecutionData[],
+	ezlog: (name: string, value: any) => void,
+) {
+	const instanceUrl = this.getNodeParameter('instanceUrl', itemIndex, '') as string;
+	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
+	ezlog('dirID', dirId);
+	const fileId = this.getNodeParameter('fileId', itemIndex, '') as string;
+	const fileUrl = `${instanceUrl}/files/${fileId}`;
+	ezlog('fileUrl', fileUrl);
+	const binPropName = this.getNodeParameter('binaryPropertyName', itemIndex, 'data');
+	const binaryData = items[itemIndex].binary?.[binPropName];
+	const realToken = items[itemIndex].json.realToken;
+
+	if (!binaryData) {
+		throw new NodeOperationError(this.getNode(), 'UpdateFile - Binary data not found', {
+			itemIndex,
+		});
+	}
+	const wantsCustomName = this.getNodeParameter('customName', itemIndex) as boolean;
+	const newName = wantsCustomName
+		? (this.getNodeParameter('newName', itemIndex) as string)
+		: undefined;
+	const fileData = binaryData.data;
+	const mimeType = binaryData.mimeType;
+	const fileBuffer = Buffer.from(fileData, 'base64');
+
+	// Change file content
+	const updatedFileResponse = await this.helpers.httpRequest({
+		method: 'PUT',
+		url: fileUrl,
+		headers: {
+			Authorization: `Bearer ${realToken}`,
+			Accept: 'application/vnd.api+json',
+			'Content-Type': mimeType,
+		},
+		body: fileBuffer,
+	});
+	ezlog('updatedFileResponse', updatedFileResponse);
+
+	// Change filename if asked
+	if (newName) {
+		const changedFilenameResponse = await this.helpers.httpRequest({
+			method: 'PATCH',
+			url: fileUrl,
+			headers: {
+				Authorization: `Bearer ${realToken}`,
+				Accept: 'application/vnd.api+json',
+				'Content-Type': mimeType,
+			},
+			body: {
+				data: {
+					type: 'io.cozy.files',
+					id: fileId,
+					attributes: {
+						name: newName,
+					},
+				},
+			},
+			json: true,
+		});
+		ezlog('changedFileNameResponse', changedFilenameResponse);
+		return { changedFilenameResponse };
+	}
+	return { updatedFileResponse };
 }

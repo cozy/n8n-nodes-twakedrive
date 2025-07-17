@@ -75,6 +75,11 @@ export class TwakeDrive implements INodeType {
 						value: 'moveFile',
 						description: 'Move the targeted file to another directory',
 					},
+					{
+						name: 'Update File',
+						value: 'updateFile',
+						description: 'Update the targeted file',
+					},
 				],
 				default: 'listFiles',
 				description: 'Operation to perform.',
@@ -123,7 +128,7 @@ export class TwakeDrive implements INodeType {
 				description: 'ID of the targeted file.',
 				displayOptions: {
 					show: {
-						operation: ['uploadFile', 'copyFile', 'moveFile'],
+						operation: ['uploadFile', 'copyFile', 'moveFile', 'updateFile'],
 					},
 				},
 			},
@@ -155,6 +160,18 @@ export class TwakeDrive implements INodeType {
 			},
 
 			{
+				displayName: 'Name of the new file',
+				name: 'customName',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						operation: ['copyFile', 'updateFile'],
+					},
+				},
+			},
+
+			{
 				displayName: 'New Name',
 				name: 'newName',
 				type: 'string',
@@ -163,7 +180,7 @@ export class TwakeDrive implements INodeType {
 				description: 'New name for the copied file or folder.',
 				displayOptions: {
 					show: {
-						operation: ['copyFile'],
+						operation: ['copyFile', 'updateFile'],
 						customName: [true],
 					},
 				},
@@ -179,18 +196,6 @@ export class TwakeDrive implements INodeType {
 				displayOptions: {
 					show: {
 						operation: ['createFileFromText'],
-					},
-				},
-			},
-
-			{
-				displayName: 'Name of the new file',
-				name: 'customName',
-				type: 'boolean',
-				default: false,
-				displayOptions: {
-					show: {
-						operation: ['copyFile'],
 					},
 				},
 			},
@@ -253,6 +258,9 @@ export class TwakeDrive implements INodeType {
 						break;
 					case 'moveFile':
 						await TwakeHelpers.moveFile.call(this, itemIndex, items, ezlog);
+						break;
+					case 'updateFile':
+						await TwakeHelpers.updateFile.call(this, itemIndex, items, ezlog);
 						break;
 				}
 			} catch (error) {
