@@ -88,22 +88,8 @@ export async function listFiles(
 	const docsArray = filesListResponse.rows;
 	const wantedFilesArray = [];
 	for (let i = 0; i < docsArray.length; i++) {
-		// Skipping directories
-		// if (docsArray[i].doc.type === 'directory') continue;
-		// const filename = docsArray[i].doc.name;
-		// const id = docsArray[i].id;
-		// const uploadedBy = docsArray[i].doc.cozyMetadata?.uploadedBy.slug;
-		// const metadata = docsArray[i].doc.metadata;
-		// const oneFile = {
-		// 	filename,
-		// 	id,
-		// 	uploadedBy,
-		// 	metadata,
-		// };
 		wantedFilesArray.push(docsArray[i]);
-		// wantedFilesArray.push(oneFile);
 	}
-	// ezlog('filesList', wantedFilesArray);
 	return { wantedFilesArray };
 }
 
@@ -149,8 +135,6 @@ export async function uploadFile(
 	ezlog('createFileResponse', createdFileResponse);
 	const createdFileId = createdFileResponse.data.id;
 	ezlog('createdFileID', createdFileId);
-
-	// ezlog('filesList', wantedFilesArray);
 	return { createdFileId };
 }
 

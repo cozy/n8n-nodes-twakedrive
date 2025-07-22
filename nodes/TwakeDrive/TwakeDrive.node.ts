@@ -5,7 +5,7 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
-import * as TwakeHelpers from './TwakeHelpers';
+import * as TwakeFilesHelpers from './FilesHelpers/FilesHelpers';
 
 export class TwakeDrive implements INodeType {
 	description: INodeTypeDescription = {
@@ -223,12 +223,12 @@ export class TwakeDrive implements INodeType {
 		const credentials = await this.getCredentials('twakeDriveApi');
 
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
-			function n8nLogger(items: any, itemIndex: any) {
+			function saveItem(items: any, itemIndex: any) {
 				return function (name: string, value: any) {
 					items[itemIndex].json[name] = value;
 				};
 			}
-			const ezlog = n8nLogger(items, itemIndex);
+			const ezlog = saveItem(items, itemIndex);
 			try {
 				const operation = this.getNodeParameter('operation', itemIndex) as string;
 				let token;
@@ -236,31 +236,32 @@ export class TwakeDrive implements INodeType {
 				switch (operation) {
 					case 'getRealToken':
 						token = credentials.apiToken as string;
-						await TwakeHelpers.getRealToken.call(this, itemIndex, ezlog, token);
+						await TwakeFilesHelpers.getRealToken.call(this, itemIndex, ezlog, token);
 						break;
+					// FILES OPERATIONS
 					case 'getOneFile':
-						await TwakeHelpers.getOneFile.call(this, itemIndex, items, ezlog);
+						await TwakeFilesHelpers.getOneFile.call(this, itemIndex, items, ezlog);
 						break;
 					case 'listFiles':
-						await TwakeHelpers.listFiles.call(this, itemIndex, items, ezlog);
+						await TwakeFilesHelpers.listFiles.call(this, itemIndex, items, ezlog);
 						break;
 					case 'uploadFile':
-						await TwakeHelpers.uploadFile.call(this, itemIndex, items, ezlog);
+						await TwakeFilesHelpers.uploadFile.call(this, itemIndex, items, ezlog);
 						break;
 					case 'copyFile':
-						await TwakeHelpers.copyFile.call(this, itemIndex, items, ezlog);
+						await TwakeFilesHelpers.copyFile.call(this, itemIndex, items, ezlog);
 						break;
 					case 'deleteFile':
-						await TwakeHelpers.deleteFile.call(this, itemIndex, items, ezlog);
+						await TwakeFilesHelpers.deleteFile.call(this, itemIndex, items, ezlog);
 						break;
 					case 'createFileFromText':
-						await TwakeHelpers.createFileFromText.call(this, itemIndex, items, ezlog);
+						await TwakeFilesHelpers.createFileFromText.call(this, itemIndex, items, ezlog);
 						break;
 					case 'moveFile':
-						await TwakeHelpers.moveFile.call(this, itemIndex, items, ezlog);
+						await TwakeFilesHelpers.moveFile.call(this, itemIndex, items, ezlog);
 						break;
 					case 'updateFile':
-						await TwakeHelpers.updateFile.call(this, itemIndex, items, ezlog);
+						await TwakeFilesHelpers.updateFile.call(this, itemIndex, items, ezlog);
 						break;
 				}
 			} catch (error) {
