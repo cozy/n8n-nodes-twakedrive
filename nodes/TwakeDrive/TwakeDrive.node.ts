@@ -10,7 +10,7 @@ import * as TwakeFilesHelpers from './FilesHelpers/FilesHelpers';
 export class TwakeDrive implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Twake Drive',
-		name: 'exampleNode',
+		name: 'twakeDriveNode',
 		group: ['transform'],
 		version: 1,
 		icon: 'file:icon.svg',
@@ -24,7 +24,6 @@ export class TwakeDrive implements INodeType {
 				required: true,
 			},
 		],
-
 		inputs: [NodeConnectionType.Main],
 		outputs: [NodeConnectionType.Main],
 		usableAsTool: true,
@@ -79,12 +78,11 @@ export class TwakeDrive implements INodeType {
 				default: 'listFiles',
 				description: 'Operation to perform.',
 			},
-
 			{
 				displayName: 'File or Directory ID',
 				name: 'fileOrDirId',
 				type: 'string',
-				default: 'e863001c7182d8ee4f791a71fd379559',
+				default: '',
 				description: 'ID of the targeted file or directory.',
 				displayOptions: {
 					show: {
@@ -92,12 +90,11 @@ export class TwakeDrive implements INodeType {
 					},
 				},
 			},
-
 			{
 				displayName: 'File ID',
 				name: 'fileId',
 				type: 'string',
-				default: 'e863001c7182d8ee4f791a71fd379559',
+				default: '',
 				description: 'ID of the targeted file.',
 				displayOptions: {
 					show: {
@@ -105,7 +102,6 @@ export class TwakeDrive implements INodeType {
 					},
 				},
 			},
-
 			{
 				displayName: 'Choose destination folder',
 				name: 'customDir',
@@ -117,12 +113,11 @@ export class TwakeDrive implements INodeType {
 					},
 				},
 			},
-
 			{
 				displayName: 'Directory ID',
 				name: 'dirId',
 				type: 'string',
-				default: '03feda4a1b0d82e0cf637a2bcb00acfd',
+				default: '',
 				description: 'ID of the targeted directory.',
 				displayOptions: {
 					show: {
@@ -131,7 +126,6 @@ export class TwakeDrive implements INodeType {
 					},
 				},
 			},
-
 			{
 				displayName: 'Directory ID',
 				name: 'dirId',
@@ -144,7 +138,6 @@ export class TwakeDrive implements INodeType {
 					},
 				},
 			},
-
 			{
 				displayName: 'Name of the new file',
 				name: 'customName',
@@ -156,7 +149,6 @@ export class TwakeDrive implements INodeType {
 					},
 				},
 			},
-
 			{
 				displayName: 'New Name',
 				name: 'newName',
@@ -171,7 +163,6 @@ export class TwakeDrive implements INodeType {
 					},
 				},
 			},
-
 			{
 				displayName: 'New Name',
 				name: 'newName',
@@ -185,7 +176,6 @@ export class TwakeDrive implements INodeType {
 					},
 				},
 			},
-
 			{
 				displayName: 'Text',
 				name: 'textContent',
