@@ -1,58 +1,15 @@
 import { IExecuteFunctions, INodeExecutionData, NodeOperationError } from 'n8n-workflow';
 
-export async function getRealToken(
-	this: IExecuteFunctions,
-	itemIndex: number,
-	ezlog: (name: string, value: any) => void,
-	token: string,
-) {
-	const instanceUrl = this.getNodeParameter('instanceUrl', itemIndex, '') as string;
-	const firstToken = token;
-
-	const permissionsUrl = `${instanceUrl}/permissions`;
-	const tokenResponse = await this.helpers.httpRequest({
-		method: 'POST',
-		url: permissionsUrl,
-		headers: {
-			Authorization: `Bearer ${firstToken}`,
-			Accept: 'application/vnd.api+json',
-			'Content-Type': 'application/vnd.api+json',
-		},
-		body: {
-			data: {
-				type: 'io.cozy.permissions',
-				attributes: {
-					permissions: {
-						'io.cozy.files': {
-							description: 'Access your files',
-							type: 'io.cozy.files',
-							verbs: ['ALL'],
-						},
-					},
-				},
-			},
-		},
-		qs: {
-			codes: 'n8n',
-		},
-		json: true,
-	});
-	const realToken = tokenResponse.data.attributes.codes.n8n;
-	ezlog('realToken', realToken);
-
-	return { realToken };
-}
-
 export async function getOneFile(
 	this: IExecuteFunctions,
 	itemIndex: number,
-	items: INodeExecutionData[],
 	ezlog: (name: string, value: any) => void,
+	credentials: { instanceUrl: string; apiToken: string },
 ) {
-	const instanceUrl = this.getNodeParameter('instanceUrl', itemIndex, '') as string;
+	const instanceUrl = credentials.instanceUrl;
 	const fileId = this.getNodeParameter('fileOrDirId', itemIndex, '') as string;
 	const fileUrl = `${instanceUrl}/files/${fileId}`;
-	const realToken = items[itemIndex].json.realToken;
+	const realToken = credentials.apiToken;
 	const fileResponse = await this.helpers.httpRequest({
 		method: 'GET',
 		url: fileUrl,
@@ -68,13 +25,12 @@ export async function getOneFile(
 
 export async function listFiles(
 	this: IExecuteFunctions,
-	itemIndex: number,
-	items: INodeExecutionData[],
 	ezlog: (name: string, value: any) => void,
+	credentials: { instanceUrl: string; apiToken: string },
 ) {
-	const instanceUrl = this.getNodeParameter('instanceUrl', itemIndex, '') as string;
+	const instanceUrl = credentials.instanceUrl;
 	const fileListUrl = `${instanceUrl}/data/io.cozy.files/_all_docs?include_docs=true&Fields=name,metadata,type,id,cozyMetadata`;
-	const realToken = items[itemIndex].json.realToken;
+	const realToken = credentials.apiToken;
 	const filesListResponse = await this.helpers.httpRequest({
 		method: 'GET',
 		url: fileListUrl,
@@ -98,13 +54,14 @@ export async function uploadFile(
 	itemIndex: number,
 	items: INodeExecutionData[],
 	ezlog: (name: string, value: any) => void,
+	credentials: { instanceUrl: string; apiToken: string },
 ) {
-	const instanceUrl = this.getNodeParameter('instanceUrl', itemIndex, '') as string;
-	const fileId = this.getNodeParameter('fileId', itemIndex, '') as string;
-	const fileUrl = `${instanceUrl}/files/${fileId}`;
+	const instanceUrl = credentials.instanceUrl;
+	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
+	const fileUrl = `${instanceUrl}/files/${dirId}`;
 	const binPropName = this.getNodeParameter('binaryPropertyName', itemIndex, 'data');
 	const binaryData = items[itemIndex].binary?.[binPropName];
-	const realToken = items[itemIndex].json.realToken;
+	const realToken = credentials.apiToken;
 
 	if (!binaryData) {
 		throw new NodeOperationError(this.getNode(), 'UploadFile - Binary data not found', {
@@ -141,17 +98,17 @@ export async function uploadFile(
 export async function copyFile(
 	this: IExecuteFunctions,
 	itemIndex: number,
-	items: INodeExecutionData[],
 	ezlog: (name: string, value: any) => void,
+	credentials: { instanceUrl: string; apiToken: string },
 ): Promise<void> {
-	const instanceUrl = this.getNodeParameter('instanceUrl', itemIndex, '') as string;
+	const instanceUrl = credentials.instanceUrl;
 	const fileId = this.getNodeParameter('fileId', itemIndex) as string;
 	const dirId = this.getNodeParameter('dirId', itemIndex) as string;
 	const wantsCustomName = this.getNodeParameter('customName', itemIndex) as boolean;
 	const newName = wantsCustomName
 		? (this.getNodeParameter('newName', itemIndex) as string)
 		: undefined;
-	const realToken = items[itemIndex].json.realToken as string;
+	const realToken = credentials.apiToken;
 	const qs: Record<string, string> = {};
 
 	if (dirId) {
@@ -177,13 +134,13 @@ export async function copyFile(
 export async function deleteFile(
 	this: IExecuteFunctions,
 	itemIndex: number,
-	items: INodeExecutionData[],
 	ezlog: (name: string, value: any) => void,
+	credentials: { instanceUrl: string; apiToken: string },
 ) {
-	const instanceUrl = this.getNodeParameter('instanceUrl', itemIndex, '') as string;
+	const instanceUrl = credentials.instanceUrl;
 	const fileId = this.getNodeParameter('fileOrDirId', itemIndex, '') as string;
 	const fileUrl = `${instanceUrl}/files/${fileId}`;
-	const realToken = items[itemIndex].json.realToken;
+	const realToken = credentials.apiToken;
 	const deletedFileResponse = await this.helpers.httpRequest({
 		method: 'DELETE',
 		url: fileUrl,
@@ -200,19 +157,15 @@ export async function deleteFile(
 export async function createFileFromText(
 	this: IExecuteFunctions,
 	itemIndex: number,
-	items: INodeExecutionData[],
 	ezlog: (name: string, value: any) => void,
+	credentials: { instanceUrl: string; apiToken: string },
 ) {
-	const instanceUrl = this.getNodeParameter('instanceUrl', itemIndex, '') as string;
+	const instanceUrl = credentials.instanceUrl;
 	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
-	ezlog('dirID', dirId);
 	const textContent = this.getNodeParameter('textContent', itemIndex, '') as string;
-	ezlog('textContent', textContent);
 	const fileName = this.getNodeParameter('newName', itemIndex, '') as string;
-	ezlog('filename', fileName);
 	const fileUrl = `${instanceUrl}/files/${dirId}`;
-	ezlog('fileUrl', fileUrl);
-	const realToken = items[itemIndex].json.realToken;
+	const realToken = credentials.apiToken;
 	const createdFileResponse = await this.helpers.httpRequest({
 		method: 'POST',
 		url: fileUrl,
@@ -233,16 +186,16 @@ export async function createFileFromText(
 export async function moveFile(
 	this: IExecuteFunctions,
 	itemIndex: number,
-	items: INodeExecutionData[],
 	ezlog: (name: string, value: any) => void,
+	credentials: { instanceUrl: string; apiToken: string },
 ) {
-	const instanceUrl = this.getNodeParameter('instanceUrl', itemIndex, '') as string;
+	const instanceUrl = credentials.instanceUrl;
 	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
 	ezlog('dirID', dirId);
 	const fileId = this.getNodeParameter('fileId', itemIndex, '') as string;
 	const fileUrl = `${instanceUrl}/files/${fileId}`;
 	ezlog('fileUrl', fileUrl);
-	const realToken = items[itemIndex].json.realToken;
+	const realToken = credentials.apiToken;
 
 	const movedFileResponse = await this.helpers.httpRequest({
 		method: 'PATCH',
@@ -269,8 +222,9 @@ export async function updateFile(
 	itemIndex: number,
 	items: INodeExecutionData[],
 	ezlog: (name: string, value: any) => void,
+	credentials: { instanceUrl: string; apiToken: string },
 ) {
-	const instanceUrl = this.getNodeParameter('instanceUrl', itemIndex, '') as string;
+	const instanceUrl = credentials.instanceUrl;
 	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
 	ezlog('dirID', dirId);
 	const fileId = this.getNodeParameter('fileId', itemIndex, '') as string;
@@ -278,7 +232,7 @@ export async function updateFile(
 	ezlog('fileUrl', fileUrl);
 	const binPropName = this.getNodeParameter('binaryPropertyName', itemIndex, 'data');
 	const binaryData = items[itemIndex].binary?.[binPropName];
-	const realToken = items[itemIndex].json.realToken;
+	const realToken = credentials.apiToken;
 
 	if (!binaryData) {
 		throw new NodeOperationError(this.getNode(), 'UpdateFile - Binary data not found', {

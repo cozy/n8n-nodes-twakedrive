@@ -35,11 +35,6 @@ export class TwakeDrive implements INodeType {
 				type: 'options',
 				options: [
 					{
-						name: 'Get Real Token',
-						value: 'getRealToken',
-						description: 'Obtain the real token from Twake permissions endpoint.',
-					},
-					{
 						name: 'Get One File',
 						value: 'getOneFile',
 						description: 'Retrieve a single file or directory by ID.',
@@ -86,28 +81,6 @@ export class TwakeDrive implements INodeType {
 			},
 
 			{
-				displayName: 'Instance URL',
-				name: 'instanceUrl',
-				type: 'string',
-				default: 'http://devccc.192-168-1-41.nip.io:8080',
-				placeholder: 'https://my-twake-instance.com',
-				description: 'Base URL of the Twake instance.',
-			},
-
-			{
-				displayName: 'Real Token',
-				name: 'realToken',
-				type: 'string',
-				default: '',
-				description: 'Token used to access Twake API.',
-				displayOptions: {
-					show: {
-						operation: ['getOneFile', 'listFiles', 'copyFile', 'createFileFromText'],
-					},
-				},
-			},
-
-			{
 				displayName: 'File or Directory ID',
 				name: 'fileOrDirId',
 				type: 'string',
@@ -128,7 +101,7 @@ export class TwakeDrive implements INodeType {
 				description: 'ID of the targeted file.',
 				displayOptions: {
 					show: {
-						operation: ['uploadFile', 'copyFile', 'moveFile', 'updateFile'],
+						operation: ['copyFile', 'moveFile', 'updateFile'],
 					},
 				},
 			},
@@ -153,8 +126,21 @@ export class TwakeDrive implements INodeType {
 				description: 'ID of the targeted directory.',
 				displayOptions: {
 					show: {
-						operation: ['copyFile', 'createFileFromText', 'moveFile'],
+						operation: ['uploadFile', 'copyFile', 'createFileFromText', 'moveFile'],
 						customDir: [true],
+					},
+				},
+			},
+
+			{
+				displayName: 'Directory ID',
+				name: 'dirId',
+				type: 'string',
+				default: '',
+				description: 'ID of the targeted directory.',
+				displayOptions: {
+					show: {
+						operation: ['uploadFile'],
 					},
 				},
 			},
@@ -220,7 +206,11 @@ export class TwakeDrive implements INodeType {
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
-		const credentials = await this.getCredentials('twakeDriveApi');
+		type TwakeCredentials = {
+			instanceUrl: string;
+			apiToken: string;
+		};
+		const credentials = (await this.getCredentials('twakeDriveApi')) as TwakeCredentials;
 
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			function saveItem(items: any, itemIndex: any) {
@@ -231,50 +221,37 @@ export class TwakeDrive implements INodeType {
 			const ezlog = saveItem(items, itemIndex);
 			try {
 				const operation = this.getNodeParameter('operation', itemIndex) as string;
-				let token;
 
 				switch (operation) {
-					case 'getRealToken':
-						token = credentials.apiToken as string;
-						await TwakeFilesHelpers.getRealToken.call(this, itemIndex, ezlog, token);
-						break;
 					// FILES OPERATIONS
 					case 'getOneFile':
-						await TwakeFilesHelpers.getOneFile.call(this, itemIndex, items, ezlog);
+						await TwakeFilesHelpers.getOneFile.call(this, itemIndex, ezlog, credentials);
 						break;
 					case 'listFiles':
-						await TwakeFilesHelpers.listFiles.call(this, itemIndex, items, ezlog);
+						await TwakeFilesHelpers.listFiles.call(this, ezlog, credentials);
 						break;
 					case 'uploadFile':
-						await TwakeFilesHelpers.uploadFile.call(this, itemIndex, items, ezlog);
+						await TwakeFilesHelpers.uploadFile.call(this, itemIndex, items, ezlog, credentials);
 						break;
 					case 'copyFile':
-						await TwakeFilesHelpers.copyFile.call(this, itemIndex, items, ezlog);
+						await TwakeFilesHelpers.copyFile.call(this, itemIndex, ezlog, credentials);
 						break;
 					case 'deleteFile':
-						await TwakeFilesHelpers.deleteFile.call(this, itemIndex, items, ezlog);
+						await TwakeFilesHelpers.deleteFile.call(this, itemIndex, ezlog, credentials);
 						break;
 					case 'createFileFromText':
-						await TwakeFilesHelpers.createFileFromText.call(this, itemIndex, items, ezlog);
+						await TwakeFilesHelpers.createFileFromText.call(this, itemIndex, ezlog, credentials);
 						break;
 					case 'moveFile':
-						await TwakeFilesHelpers.moveFile.call(this, itemIndex, items, ezlog);
+						await TwakeFilesHelpers.moveFile.call(this, itemIndex, ezlog, credentials);
 						break;
 					case 'updateFile':
-						await TwakeFilesHelpers.updateFile.call(this, itemIndex, items, ezlog);
+						await TwakeFilesHelpers.updateFile.call(this, itemIndex, items, ezlog, credentials);
 						break;
 				}
 			} catch (error) {
-				items[itemIndex].json.errorMessage = error.message;
-				items[itemIndex].json.errorResponse = error.response?.data || null;
-				items[itemIndex].json.instanceUrl = this.getNodeParameter(
-					'instanceUrl',
-
-					itemIndex,
-
-					'',
-				) as string;
-
+				ezlog('errorMessage', error.message);
+				ezlog('errorResponse', error.response?.data || null);
 				if (!this.continueOnFail()) {
 					throw new NodeOperationError(this.getNode(), error, { itemIndex });
 				}
