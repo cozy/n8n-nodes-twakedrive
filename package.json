@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-twakedrive",
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"description": "Custom community node to interact with Twake Drive",
 	"keywords": [
 		"n8n-community-node-package"
@@ -36,7 +36,7 @@
 			"dist/credentials/TwakeDriveApi.credentials.js"
 		],
 		"nodes": [
-			"dist/nodes/TwakeDrive/TwakeDrive.node.js"
+			"dist/nodes/TwakeDrive/TwakeDriveNode.node.js"
 		]
 	},
 	"devDependencies": {

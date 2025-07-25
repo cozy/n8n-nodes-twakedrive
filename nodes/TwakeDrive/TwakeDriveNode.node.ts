@@ -7,7 +7,7 @@ import type {
 import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
 import * as TwakeFilesHelpers from './FilesHelpers/FilesHelpers';
 
-export class TwakeDrive implements INodeType {
+export class TwakeDriveNode implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Twake Drive',
 		name: 'twakeDriveNode',
@@ -32,58 +32,67 @@ export class TwakeDrive implements INodeType {
 				displayName: 'Operation',
 				name: 'operation',
 				type: 'options',
+				noDataExpression: true,
 				options: [
-					{
-						name: 'Get One File',
-						value: 'getOneFile',
-						description: 'Retrieve a single file or directory by ID.',
-					},
-					{
-						name: 'List Files',
-						value: 'listFiles',
-						description: 'List all files in the Twake instance.',
-					},
-					{
-						name: 'Upload File',
-						value: 'uploadFile',
-						description: 'Upload a receveid file in the Twake instance in designated directory',
-					},
 					{
 						name: 'Copy File',
 						value: 'copyFile',
 						description:
 							'Copy the selected file in the Twake instance in the targeted directory if any',
+						action: 'Copy the selected file in the twake instance in the targeted directory if any',
+					},
+					{
+						name: 'Create File From Text',
+						value: 'createFileFromText',
+						description: 'Create a new text file with given text',
+						action: 'Create a new text file with given text',
 					},
 					{
 						name: 'Delete File',
 						value: 'deleteFile',
 						description: 'Delete the selected file in the Twake instance',
+						action: 'Delete the selected file in the twake instance',
 					},
 					{
-						name: 'Create file from text',
-						value: 'createFileFromText',
-						description: 'Create a new text file with given text',
+						name: 'Get One File',
+						value: 'getOneFile',
+						description: 'Retrieve a single file or directory by ID',
+						action: 'Retrieve a single file or directory by ID.',
+					},
+					{
+						name: 'List Files',
+						value: 'listFiles',
+						description: 'List all files in the Twake instance',
+						action: 'List all files in the twake instance',
 					},
 					{
 						name: 'Move File',
 						value: 'moveFile',
 						description: 'Move the targeted file to another directory',
+						action: 'Move the targeted file to another directory',
 					},
 					{
 						name: 'Update File',
 						value: 'updateFile',
 						description: 'Update the targeted file',
+						action: 'Update the targeted file',
+					},
+					{
+						name: 'Upload File',
+						value: 'uploadFile',
+						description: 'Upload a received file in the Twake instance in designated directory',
+						action: 'Upload a received file in the twake instance in designated directory',
 					},
 				],
+
 				default: 'listFiles',
-				description: 'Operation to perform.',
 			},
 			{
 				displayName: 'File or Directory ID',
 				name: 'fileOrDirId',
 				type: 'string',
 				default: '',
-				description: 'ID of the targeted file or directory.',
+				description: 'ID of the targeted file or directory',
 				displayOptions: {
 					show: {
 						operation: ['getOneFile', 'deleteFile'],
@@ -95,7 +104,7 @@ export class TwakeDrive implements INodeType {
 				name: 'fileId',
 				type: 'string',
 				default: '',
-				description: 'ID of the targeted file.',
+				description: 'ID of the targeted file',
 				displayOptions: {
 					show: {
 						operation: ['copyFile', 'moveFile', 'updateFile'],
@@ -103,7 +112,7 @@ export class TwakeDrive implements INodeType {
 				},
 			},
 			{
-				displayName: 'Choose destination folder',
+				displayName: 'Choose Destination Folder',
 				name: 'customDir',
 				type: 'boolean',
 				default: false,
@@ -118,7 +127,7 @@ export class TwakeDrive implements INodeType {
 				name: 'dirId',
 				type: 'string',
 				default: '',
-				description: 'ID of the targeted directory.',
+				description: 'ID of the targeted directory',
 				displayOptions: {
 					show: {
 						operation: ['uploadFile', 'copyFile', 'createFileFromText', 'moveFile'],
@@ -131,7 +140,7 @@ export class TwakeDrive implements INodeType {
 				name: 'dirId',
 				type: 'string',
 				default: '',
-				description: 'ID of the targeted directory.',
+				description: 'ID of the targeted directory',
 				displayOptions: {
 					show: {
 						operation: ['uploadFile'],
@@ -139,7 +148,7 @@ export class TwakeDrive implements INodeType {
 				},
 			},
 			{
-				displayName: 'Name of the new file',
+				displayName: 'Name of the New File',
 				name: 'customName',
 				type: 'boolean',
 				default: false,
@@ -155,7 +164,7 @@ export class TwakeDrive implements INodeType {
 				type: 'string',
 				default: '',
 				placeholder: 'file(copy).pdf',
-				description: 'New name for the copied file or folder.',
+				description: 'New name for the copied file or folder',
 				displayOptions: {
 					show: {
 						operation: ['copyFile', 'updateFile'],
@@ -181,7 +190,7 @@ export class TwakeDrive implements INodeType {
 				name: 'textContent',
 				type: 'string',
 				default: '',
-				description: 'Text content of the new file.',
+				description: 'Text content of the new file',
 				typeOptions: {
 					rows: 5,
 				},
