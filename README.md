@@ -63,7 +63,7 @@ APP_NAME="n8n" # Mandatory
 FIRST_TOKEN=$(cozy-stack instances token-cli "$INSTANCE_NAME" io.cozy.files )
 
 if [ -z "$FIRST_TOKEN" ]; then
-  echo "❌ Impossible de récupérer le premier token"
+  echo "❌ Impossible to fetch first token, verify your cozy-stack installation"
   exit 1
 fi
 
@@ -91,7 +91,7 @@ RESPONSE=$(curl -s -X POST "$INSTANCE_URL/permissions?codes=$APP_NAME" \
 PERMISSIONS_TOKEN=$(echo "$RESPONSE" | jq -r ".data.attributes.codes[\"$APP_NAME\"]")
 
 if [ "$PERMISSIONS_TOKEN" == "null" ] || [ -z "$PERMISSIONS_TOKEN" ]; then
-  echo "❌ Token final introuvable"
+  echo "❌ Final token not found"
   exit 1
 fi
 
