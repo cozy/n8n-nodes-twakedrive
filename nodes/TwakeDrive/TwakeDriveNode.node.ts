@@ -6,6 +6,7 @@ import type {
 } from 'n8n-workflow';
 import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
 import * as TwakeFilesHelpers from './FilesHelpers/FilesHelpers';
+import * as TwakeDirectoriesHelpers from './DirectoriesHelpers/DirectoriesHelpers';
 import { createEzlog } from './utils/ezlog';
 
 export class TwakeDriveNode implements INodeType {
@@ -35,6 +36,7 @@ export class TwakeDriveNode implements INodeType {
 				type: 'options',
 				noDataExpression: true,
 				options: [
+					// FILES OPERATIONS
 					{
 						name: 'Copy File',
 						value: 'copyFile',
@@ -84,6 +86,14 @@ export class TwakeDriveNode implements INodeType {
 						description: 'Upload a received file in the Twake instance in designated directory',
 						action: 'Upload a received file in the twake instance in designated directory',
 					},
+					// DIRECTORIES OPERATION
+					{
+						name: 'Create Folder',
+						value: 'createFolder',
+						description:
+							'Create a new directory in the Twake instance. Destination directory can be specified',
+						action: 'Create a new directory in the twake instance',
+					},
 				],
 
 				default: 'listFiles',
@@ -119,7 +129,7 @@ export class TwakeDriveNode implements INodeType {
 				default: false,
 				displayOptions: {
 					show: {
-						operation: ['copyFile', 'createFileFromText', 'moveFile'],
+						operation: ['copyFile', 'createFileFromText', 'moveFile', 'createFolder'],
 					},
 				},
 			},
@@ -131,7 +141,7 @@ export class TwakeDriveNode implements INodeType {
 				description: 'ID of the targeted directory',
 				displayOptions: {
 					show: {
-						operation: ['uploadFile', 'copyFile', 'createFileFromText', 'moveFile'],
+						operation: ['uploadFile', 'copyFile', 'createFileFromText', 'moveFile', 'createFolder'],
 						customDir: [true],
 					},
 				},
@@ -201,6 +211,19 @@ export class TwakeDriveNode implements INodeType {
 					},
 				},
 			},
+			{
+				displayName: 'Directory Name',
+				name: 'dirName',
+				type: 'string',
+				default: '',
+				placeholder: 'My new folder',
+				description: 'Name of the directory to create',
+				displayOptions: {
+					show: {
+						operation: ['createFolder'],
+					},
+				},
+			},
 		],
 	};
 
@@ -242,6 +265,17 @@ export class TwakeDriveNode implements INodeType {
 					case 'updateFile':
 						await TwakeFilesHelpers.updateFile.call(this, itemIndex, items, ezlog, credentials);
 						break;
+					// DIRECTORIES OPERATIONS
+					case 'createFolder': {
+						await TwakeDirectoriesHelpers.createFolder.call(
+							this,
+							itemIndex,
+							items,
+							ezlog,
+							credentials,
+						);
+						break;
+					}
 				}
 			} catch (error) {
 				ezlog('errorMessage', error.message);
