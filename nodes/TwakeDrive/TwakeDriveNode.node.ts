@@ -94,6 +94,12 @@ export class TwakeDriveNode implements INodeType {
 							'Create a new directory in the Twake instance. Destination directory can be specified',
 						action: 'Create a new directory in the twake instance',
 					},
+					{
+						name: 'Delete Folder',
+						value: 'deleteFolder',
+						description: 'Delete the selected directory in the Twake instance',
+						action: 'Delete the selected directory in the twake instance',
+					},
 				],
 
 				default: 'listFiles',
@@ -154,7 +160,7 @@ export class TwakeDriveNode implements INodeType {
 				description: 'ID of the targeted directory',
 				displayOptions: {
 					show: {
-						operation: ['uploadFile'],
+						operation: ['uploadFile', 'deleteFolder'],
 					},
 				},
 			},
@@ -240,7 +246,9 @@ export class TwakeDriveNode implements INodeType {
 			try {
 				const operation = this.getNodeParameter('operation', itemIndex) as string;
 				switch (operation) {
-					// FILES OPERATIONS
+					//////////////////////
+					// FILES OPERATIONS //
+					//////////////////////
 					case 'getOneFile':
 						await TwakeFilesHelpers.getOneFile.call(this, itemIndex, ezlog, credentials);
 						break;
@@ -265,8 +273,10 @@ export class TwakeDriveNode implements INodeType {
 					case 'updateFile':
 						await TwakeFilesHelpers.updateFile.call(this, itemIndex, items, ezlog, credentials);
 						break;
-					// DIRECTORIES OPERATIONS
-					case 'createFolder': {
+					////////////////////////////
+					// DIRECTORIES OPERATIONS //
+					////////////////////////////
+					case 'createFolder':
 						await TwakeDirectoriesHelpers.createFolder.call(
 							this,
 							itemIndex,
@@ -275,7 +285,9 @@ export class TwakeDriveNode implements INodeType {
 							credentials,
 						);
 						break;
-					}
+					case 'deleteFolder':
+						await TwakeDirectoriesHelpers.deleteFolder.call(this, itemIndex, ezlog, credentials);
+						break;
 				}
 			} catch (error) {
 				ezlog('errorMessage', error.message);

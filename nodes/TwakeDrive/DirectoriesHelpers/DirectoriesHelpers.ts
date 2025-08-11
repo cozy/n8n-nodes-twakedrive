@@ -56,3 +56,37 @@ export async function createFolder(
 		throw new NodeOperationError(this.getNode(), error, { itemIndex });
 	}
 }
+
+export async function deleteFolder(
+	this: IExecuteFunctions,
+	itemIndex: number,
+	ezlog: (name: string, value: any) => void,
+	credentials: { instanceUrl: string; apiToken: string },
+) {
+	const instanceUrl = credentials.instanceUrl;
+	const realToken = credentials.apiToken;
+
+	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
+	if (!dirId) {
+		throw new NodeOperationError(this.getNode(), 'Directory ID is required', { itemIndex });
+	}
+
+	const url = `${instanceUrl}/files/${encodeURIComponent(dirId)}`;
+
+	try {
+		await this.helpers.httpRequest({
+			method: 'DELETE',
+			url,
+			headers: {
+				Authorization: `Bearer ${realToken}`,
+				Accept: 'application/vnd.api+json',
+			},
+			json: true,
+		});
+
+		ezlog('deletedFolderId', dirId);
+		return { deletedFolderId: dirId };
+	} catch (error: any) {
+		throw new NodeOperationError(this.getNode(), error, { itemIndex });
+	}
+}
