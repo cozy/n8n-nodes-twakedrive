@@ -6,6 +6,7 @@ import type {
 } from 'n8n-workflow';
 import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
 import * as TwakeFilesHelpers from './FilesHelpers/FilesHelpers';
+import { createEzlog } from './utils/ezlog';
 
 export class TwakeDriveNode implements INodeType {
 	description: INodeTypeDescription = {
@@ -212,15 +213,9 @@ export class TwakeDriveNode implements INodeType {
 		const credentials = (await this.getCredentials('twakeDriveApi')) as TwakeCredentials;
 
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
-			function saveItem(items: any, itemIndex: any) {
-				return function (name: string, value: any) {
-					items[itemIndex].json[name] = value;
-				};
-			}
-			const ezlog = saveItem(items, itemIndex);
+			const ezlog = createEzlog(items as INodeExecutionData[], itemIndex);
 			try {
 				const operation = this.getNodeParameter('operation', itemIndex) as string;
-
 				switch (operation) {
 					// FILES OPERATIONS
 					case 'getOneFile':
