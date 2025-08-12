@@ -237,6 +237,27 @@ export class TwakeDriveNode implements INodeType {
 				},
 			},
 			{
+				displayName: 'Listing Mode',
+				name: 'listMode',
+				type: 'options',
+				default: 'all',
+				options: [
+					{ name: 'All files', value: 'all' },
+					{ name: 'Folder contents', value: 'byDirectory' },
+				],
+				displayOptions: { show: { operation: ['listFiles'] } },
+			},
+			{
+				displayName: 'Directory ID',
+				name: 'listDirId',
+				type: 'string',
+				default: '',
+				description: 'ID of the directory to list',
+				displayOptions: {
+					show: { operation: ['listFiles'], listMode: ['byDirectory'] },
+				},
+			},
+			{
 				displayName: 'Directory Name',
 				name: 'dirName',
 				type: 'string',
@@ -297,7 +318,7 @@ export class TwakeDriveNode implements INodeType {
 						await TwakeFilesHelpers.getOneFile.call(this, itemIndex, ezlog, credentials);
 						break;
 					case 'listFiles':
-						await TwakeFilesHelpers.listFiles.call(this, ezlog, credentials);
+						await TwakeFilesHelpers.listFiles.call(this, itemIndex, ezlog, credentials);
 						break;
 					case 'uploadFile':
 						await TwakeFilesHelpers.uploadFile.call(this, itemIndex, items, ezlog, credentials);
