@@ -106,6 +106,12 @@ export class TwakeDriveNode implements INodeType {
 						description: 'Move the selected folder to another directory',
 						action: 'Move the selected folder to another directory',
 					},
+					{
+						name: 'Rename Folder',
+						value: 'renameFolder',
+						description: 'Rename the selected folder',
+						action: 'Rename the selected folder',
+					},
 				],
 
 				default: 'listFiles',
@@ -251,7 +257,20 @@ export class TwakeDriveNode implements INodeType {
 				description: 'ID of the folder to move or rename',
 				displayOptions: {
 					show: {
-						operation: ['moveFolder'],
+						operation: ['moveFolder', 'renameFolder'],
+					},
+				},
+			},
+			{
+				displayName: 'New Folder Name',
+				name: 'newFolderName',
+				type: 'string',
+				default: '',
+				placeholder: 'My renamed folder',
+				description: 'New name for the folder',
+				displayOptions: {
+					show: {
+						operation: ['renameFolder'],
 					},
 				},
 			},
@@ -315,6 +334,9 @@ export class TwakeDriveNode implements INodeType {
 						break;
 					case 'moveFolder':
 						await TwakeDirectoriesHelpers.moveFolder.call(this, itemIndex, ezlog, credentials);
+						break;
+					case 'renameFolder':
+						await TwakeDirectoriesHelpers.renameFolder.call(this, itemIndex, ezlog, credentials);
 						break;
 				}
 			} catch (error) {

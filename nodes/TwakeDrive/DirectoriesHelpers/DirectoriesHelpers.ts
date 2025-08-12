@@ -136,3 +136,42 @@ export async function moveFolder(
 	ezlog('movedFolderDest', destDirId);
 	return { movedFolderResponse };
 }
+
+export async function renameFolder(
+	this: IExecuteFunctions,
+	itemIndex: number,
+	ezlog: (name: string, value: any) => void,
+	credentials: { instanceUrl: string; apiToken: string },
+) {
+	const instanceUrl = credentials.instanceUrl;
+	const realToken = credentials.apiToken;
+	const folderId = this.getNodeParameter('folderId', itemIndex, '') as string;
+	const newFolderName = this.getNodeParameter('newFolderName', itemIndex, '') as string;
+	if (!folderId) {
+		throw new NodeOperationError(this.getNode(), 'Folder ID is required', { itemIndex });
+	}
+	if (!newFolderName) {
+		throw new NodeOperationError(this.getNode(), 'New Folder Name is required', { itemIndex });
+	}
+	const url = `${instanceUrl}/files/${encodeURIComponent(folderId)}`;
+	const renameResponse = await this.helpers.httpRequest({
+		method: 'PATCH',
+		url,
+		headers: {
+			Authorization: `Bearer ${realToken}`,
+			Accept: 'application/vnd.api+json',
+			'Content-Type': 'application/vnd.api+json',
+		},
+		body: JSON.stringify({
+			data: {
+				type: 'io.cozy.files',
+				id: folderId,
+				attributes: { name: newFolderName },
+			},
+		}),
+		json: true,
+	});
+	ezlog('renamedFolderId', folderId);
+	ezlog('renamedFolderNewName', newFolderName);
+	return { renameResponse };
+}
