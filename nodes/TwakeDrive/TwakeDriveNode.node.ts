@@ -100,6 +100,12 @@ export class TwakeDriveNode implements INodeType {
 						description: 'Delete the selected directory in the Twake instance',
 						action: 'Delete the selected directory in the twake instance',
 					},
+					{
+						name: 'Move Folder',
+						value: 'moveFolder',
+						description: 'Move the selected folder to another directory',
+						action: 'Move the selected folder to another directory',
+					},
 				],
 
 				default: 'listFiles',
@@ -135,7 +141,7 @@ export class TwakeDriveNode implements INodeType {
 				default: false,
 				displayOptions: {
 					show: {
-						operation: ['copyFile', 'createFileFromText', 'moveFile', 'createFolder'],
+						operation: ['copyFile', 'createFileFromText', 'moveFile', 'createFolder', 'moveFolder'],
 					},
 				},
 			},
@@ -147,7 +153,14 @@ export class TwakeDriveNode implements INodeType {
 				description: 'ID of the targeted directory',
 				displayOptions: {
 					show: {
-						operation: ['uploadFile', 'copyFile', 'createFileFromText', 'moveFile', 'createFolder'],
+						operation: [
+							'uploadFile',
+							'copyFile',
+							'createFileFromText',
+							'moveFile',
+							'createFolder',
+							'moveFolder',
+						],
 						customDir: [true],
 					},
 				},
@@ -230,6 +243,18 @@ export class TwakeDriveNode implements INodeType {
 					},
 				},
 			},
+			{
+				displayName: 'Folder ID',
+				name: 'folderId',
+				type: 'string',
+				default: '',
+				description: 'ID of the folder to move or rename',
+				displayOptions: {
+					show: {
+						operation: ['moveFolder'],
+					},
+				},
+			},
 		],
 	};
 
@@ -287,6 +312,9 @@ export class TwakeDriveNode implements INodeType {
 						break;
 					case 'deleteFolder':
 						await TwakeDirectoriesHelpers.deleteFolder.call(this, itemIndex, ezlog, credentials);
+						break;
+					case 'moveFolder':
+						await TwakeDirectoriesHelpers.moveFolder.call(this, itemIndex, ezlog, credentials);
 						break;
 				}
 			} catch (error) {

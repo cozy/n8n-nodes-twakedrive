@@ -90,3 +90,49 @@ export async function deleteFolder(
 		throw new NodeOperationError(this.getNode(), error, { itemIndex });
 	}
 }
+
+export async function moveFolder(
+	this: IExecuteFunctions,
+	itemIndex: number,
+	ezlog: (name: string, value: any) => void,
+	credentials: { instanceUrl: string; apiToken: string },
+) {
+	const instanceUrl = credentials.instanceUrl;
+	const realToken = credentials.apiToken;
+
+	const folderId = this.getNodeParameter('folderId', itemIndex, '') as string;
+	const useCustomDir = this.getNodeParameter('customDir', itemIndex, false) as boolean;
+	const destDirId = useCustomDir
+		? (this.getNodeParameter('dirId', itemIndex, '') as string)
+		: 'io.cozy.files.root-dir';
+
+	if (!folderId) {
+		throw new NodeOperationError(this.getNode(), 'Folder ID is required', { itemIndex });
+	}
+	if (!destDirId) {
+		throw new NodeOperationError(this.getNode(), 'Destination Directory ID is required', {
+			itemIndex,
+		});
+	}
+
+	const url = `${instanceUrl}/files/${encodeURIComponent(folderId)}`;
+
+	const movedFolderResponse = await this.helpers.httpRequest({
+		method: 'PATCH',
+		url,
+		headers: {
+			Authorization: `Bearer ${realToken}`,
+			Accept: 'application/vnd.api+json',
+			'Content-Type': 'application/vnd.api+json',
+		},
+		body: JSON.stringify({
+			data: {
+				attributes: { dir_id: destDirId },
+			},
+		}),
+	});
+
+	ezlog('movedFolderId', folderId);
+	ezlog('movedFolderDest', destDirId);
+	return { movedFolderResponse };
+}
