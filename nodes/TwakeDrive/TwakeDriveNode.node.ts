@@ -7,6 +7,7 @@ import type {
 import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
 import * as TwakeFilesHelpers from './FilesHelpers/FilesHelpers';
 import * as TwakeDirectoriesHelpers from './DirectoriesHelpers/DirectoriesHelpers';
+import * as TwakeSharingHelpers from './SharingHelpers/SharingHelpers';
 import { createEzlog } from './utils/ezlog';
 
 export class TwakeDriveNode implements INodeType {
@@ -86,7 +87,7 @@ export class TwakeDriveNode implements INodeType {
 						description: 'Upload a received file in the Twake instance in designated directory',
 						action: 'Upload a received file in the twake instance in designated directory',
 					},
-					// DIRECTORIES OPERATION
+					// DIRECTORIES OPERATIONS
 					{
 						name: 'Create Folder',
 						value: 'createFolder',
@@ -112,6 +113,13 @@ export class TwakeDriveNode implements INodeType {
 						description: 'Rename the selected folder',
 						action: 'Rename the selected folder',
 					},
+					// SHARING OPERATIONS
+					{
+						name: 'Share by Link (File or Folder)',
+						value: 'shareByLink',
+						description: 'Create a share link for a file or a folder',
+						action: 'Create a share link for a file or a folder',
+					},
 				],
 
 				default: 'listFiles',
@@ -124,10 +132,92 @@ export class TwakeDriveNode implements INodeType {
 				description: 'ID of the targeted file or directory',
 				displayOptions: {
 					show: {
-						operation: ['getOneFile', 'deleteFile'],
+						operation: ['getOneFile', 'deleteFile', 'shareByLink'],
 					},
 				},
 			},
+			{
+				displayName: 'Access Level',
+				name: 'accessLevel',
+				type: 'options',
+				default: 'read',
+				options: [
+					{ name: 'Read-only', value: 'read' },
+					{ name: 'Can edit', value: 'write' },
+				],
+				displayOptions: { show: { operation: ['shareByLink'] } },
+			},
+			{
+				displayName: 'Use Expiry',
+				name: 'useTtl',
+				type: 'boolean',
+				default: false,
+				displayOptions: { show: { operation: ['shareByLink'] } },
+			},
+			{
+				displayName: 'Expiry (Duration)',
+				name: 'expiryDuration',
+				type: 'fixedCollection',
+				default: {},
+				typeOptions: { multipleValues: false },
+				displayOptions: { show: { operation: ['shareByLink'], useTtl: [true] } },
+				options: [
+					{
+						displayName: 'Duration',
+						name: 'duration',
+						values: [
+							{
+								displayName: 'Amount',
+								name: 'amount',
+								type: 'number',
+								default: 1,
+								typeOptions: { minValue: 1 },
+							},
+							{
+								displayName: 'Unit',
+								name: 'unit',
+								type: 'options',
+								default: 's',
+								options: [
+									{ name: 'Seconds', value: 's' },
+									{ name: 'Minutes', value: 'm' },
+									{ name: 'Hours', value: 'h' },
+									{ name: 'Days', value: 'D' },
+									{ name: 'Months', value: 'M' },
+									{ name: 'Years', value: 'Y' },
+								],
+							},
+						],
+					},
+				],
+			},
+
+			{
+				displayName: 'Protect with Password',
+				name: 'usePassword',
+				type: 'boolean',
+				default: false,
+				displayOptions: { show: { operation: ['shareByLink'] } },
+			},
+			{
+				displayName: 'Password',
+				name: 'sharePassword',
+				type: 'string',
+				typeOptions: { password: true },
+				default: '',
+				displayOptions: { show: { operation: ['shareByLink'], usePassword: [true] } },
+			},
+			{
+				displayName: 'Codes (Comma-separated labels)',
+				name: 'codes',
+				type: 'string',
+				default: '',
+				placeholder: 'e.g. link or clientA,clientB ...',
+				description:
+					'Comma-separated labels; This will be the key(s) of the created codes, each creates a separate link that can be revoked independently.',
+				displayOptions: { show: { operation: ['shareByLink'] } },
+			},
+
 			{
 				displayName: 'File ID',
 				name: 'fileId',
@@ -358,6 +448,12 @@ export class TwakeDriveNode implements INodeType {
 						break;
 					case 'renameFolder':
 						await TwakeDirectoriesHelpers.renameFolder.call(this, itemIndex, ezlog, credentials);
+						break;
+					////////////////////////
+					// SHARING OPERATIONS //
+					////////////////////////
+					case 'shareByLink':
+						await TwakeSharingHelpers.shareByLink.call(this, itemIndex, ezlog, credentials);
 						break;
 				}
 			} catch (error) {
