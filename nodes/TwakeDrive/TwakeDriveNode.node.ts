@@ -3,6 +3,7 @@ import type {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	ILoadOptionsFunctions,
 } from 'n8n-workflow';
 import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
 import * as TwakeFilesHelpers from './FilesHelpers/FilesHelpers';
@@ -120,6 +121,12 @@ export class TwakeDriveNode implements INodeType {
 						description: 'Create a share link for a file or a folder',
 						action: 'Create a share link for a file or a folder',
 					},
+					{
+						name: 'Delete Share (by Permissions ID)',
+						value: 'deleteShare',
+						description: 'Delete a share by its permissions ID (revokes all codes)',
+						action: 'Delete a share by its permissions ID',
+					},
 				],
 
 				default: 'listFiles',
@@ -136,6 +143,42 @@ export class TwakeDriveNode implements INodeType {
 					},
 				},
 			},
+			{
+				displayName: 'Permissions ID',
+				name: 'permissionsId',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'loadSharePermissions',
+				},
+				default: '',
+				required: true,
+				description: 'Select the share to delete (labels · id)',
+				displayOptions: { show: { operation: ['deleteShare'] } },
+			},
+			{
+				displayName: 'Revoke Only Selected Labels',
+				name: 'useLabels',
+				type: 'boolean',
+				default: false,
+				description: 'ON: revoke only selected labels. OFF: delete the whole share',
+				displayOptions: { show: { operation: ['deleteShare'] } },
+			},
+			{
+				displayName: 'Labels to Revoke (optional)',
+				name: 'labelsToRevoke',
+				type: 'multiOptions',
+				typeOptions: {
+					loadOptionsMethod: 'loadShareLabels',
+					loadOptionsDependsOn: ['permissionsId'],
+				},
+				default: [],
+				required: false,
+				placeholder: 'Leave empty to delete the entire share',
+				description:
+					'Select labels to revoke. If empty (or switch OFF), the entire share is deleted',
+				displayOptions: { show: { operation: ['deleteShare'], useLabels: [true] } },
+			},
+
 			{
 				displayName: 'Access Level',
 				name: 'accessLevel',
@@ -387,6 +430,88 @@ export class TwakeDriveNode implements INodeType {
 			},
 		],
 	};
+	methods = {
+		loadOptions: {
+			// Show all permissions "share-by-link" in a dropdown
+			async loadSharePermissions(this: ILoadOptionsFunctions) {
+				const creds = (await this.getCredentials('twakeDriveApi')) as {
+					instanceUrl: string;
+					apiToken: string;
+				};
+				const instanceUrl = creds.instanceUrl;
+				const token = creds.apiToken;
+
+				const out: Array<{ name: string; value: string }> = [];
+				const seen = new Set<string>();
+				let next: string | undefined;
+
+				const headers = {
+					Authorization: `Bearer ${token}`,
+					Accept: 'application/vnd.api+json',
+				};
+
+				do {
+					const url = next
+						? new URL(next, instanceUrl).toString()
+						: `${instanceUrl}/permissions/doctype/io.cozy.files/shared-by-link`;
+
+					const resp = await this.helpers.httpRequest({ method: 'GET', url, headers, json: true });
+					const data = Array.isArray(resp?.data) ? resp.data : [];
+
+					for (const permissionEntries of data) {
+						const id = String(permissionEntries?.id ?? '').trim();
+						if (!id || seen.has(id)) continue;
+						seen.add(id);
+						const attrs: any = permissionEntries?.attributes ?? {};
+						const codes =
+							attrs?.codes && typeof attrs.codes === 'object' && !Array.isArray(attrs.codes)
+								? (attrs.codes as Record<string, string>)
+								: {};
+						const shortcodes =
+							attrs?.shortcodes &&
+							typeof attrs.shortcodes === 'object' &&
+							!Array.isArray(attrs.shortcodes)
+								? (attrs.shortcodes as Record<string, string>)
+								: {};
+						const labels = Array.from(
+							new Set([...Object.keys(shortcodes), ...Object.keys(codes)].filter(Boolean)),
+						).sort();
+						const name = labels.length ? `${labels.join(', ')} · ${id}` : id;
+						const value = JSON.stringify({ id, codes, shortcodes });
+						out.push({ name, value });
+					}
+					next = resp?.links?.next;
+				} while (next);
+				return out;
+			},
+			// Show list of labels of the selected "share-by-link" permission
+			async loadShareLabels(this: ILoadOptionsFunctions) {
+				const permParam = (this.getCurrentNodeParameter('permissionsId') as string) || '';
+				if (!permParam) return [];
+				let parsed: any;
+				try {
+					parsed = JSON.parse(permParam);
+				} catch {
+					// If nothing to parse, return empty, it is handle by the helpers function
+					return [];
+				}
+				const codes =
+					parsed?.codes && typeof parsed.codes === 'object' && !Array.isArray(parsed.codes)
+						? (parsed.codes as Record<string, string>)
+						: {};
+				const shortcodes =
+					parsed?.shortcodes &&
+					typeof parsed.shortcodes === 'object' &&
+					!Array.isArray(parsed.shortcodes)
+						? (parsed.shortcodes as Record<string, string>)
+						: {};
+				const labels = Array.from(
+					new Set([...Object.keys(shortcodes), ...Object.keys(codes)]),
+				).sort();
+				return labels.map((label) => ({ name: label, value: label }));
+			},
+		},
+	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
@@ -454,6 +579,9 @@ export class TwakeDriveNode implements INodeType {
 					////////////////////////
 					case 'shareByLink':
 						await TwakeSharingHelpers.shareByLink.call(this, itemIndex, ezlog, credentials);
+						break;
+					case 'deleteShare':
+						await TwakeSharingHelpers.deleteShareByLink.call(this, itemIndex, ezlog, credentials);
 						break;
 				}
 			} catch (error) {

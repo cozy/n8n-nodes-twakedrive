@@ -83,3 +83,110 @@ export async function shareByLink(
 		throw new NodeOperationError(this.getNode(), error, { itemIndex });
 	}
 }
+
+export async function deleteShareByLink(
+	this: IExecuteFunctions,
+	itemIndex: number,
+	ezlog: (name: string, value: any) => void,
+	credentials: { instanceUrl: string; apiToken: string },
+) {
+	const { instanceUrl, apiToken } = credentials;
+	const rawPerm = this.getNodeParameter('permissionsId', itemIndex, '') as string;
+	if (!rawPerm) {
+		throw new NodeOperationError(this.getNode(), 'Permissions ID is required', { itemIndex });
+	}
+	let parsed: any;
+	try {
+		parsed = JSON.parse(rawPerm);
+	} catch {
+		throw new NodeOperationError(
+			this.getNode(),
+			'Invalid permission payload. Select an item from the dropdown.',
+			{ itemIndex },
+		);
+	}
+	const permissionsId = String(parsed.id || '');
+	const codesMap = (parsed.codes ?? {}) as Record<string, string>;
+	const shortsMap = (parsed.shortcodes ?? {}) as Record<string, string>;
+	const useLabels = this.getNodeParameter('useLabels', itemIndex, false) as boolean;
+	const labels = this.getNodeParameter('labelsToRevoke', itemIndex, []) as string[] | string;
+	const labelsToRevoke = (Array.isArray(labels) ? labels : [labels])
+		.map((rawLabel) => String(rawLabel).trim())
+		.filter(Boolean);
+
+	// Full permission deletion (labels OFF or no label specified)
+	if (!useLabels || labelsToRevoke.length === 0) {
+		await this.helpers.httpRequest({
+			method: 'DELETE',
+			url: `${instanceUrl}/permissions/${encodeURIComponent(permissionsId)}`,
+			headers: { Authorization: `Bearer ${apiToken}`, Accept: 'application/vnd.api+json' },
+			json: true,
+		});
+		ezlog('deletedPermission', {
+			permissionsId,
+			type: !useLabels ? 'toggle_off' : 'no_labels',
+		});
+		return { permissionsId, removed: 'ALL', remaining: [], status: 'deleted' };
+	}
+
+	// codes|shortcodes|solo string support
+	type Target = { kind: 'codes' | 'shortcodes' | 'any'; label: string };
+	const wantedLabels: Target[] = labelsToRevoke.map((val) => {
+		const prefixLabelMatch = val.match(/^([a-zA-Z]+)\s*:\s*(.+)$/);
+		if (prefixLabelMatch) {
+			const kind = prefixLabelMatch[1].toLowerCase();
+			const label = prefixLabelMatch[2].trim();
+			if (kind === 'codes' || kind === 'code') return { kind: 'codes', label };
+			if (kind === 'shortcodes' || kind === 'short' || kind === 'shortcode')
+				return { kind: 'shortcodes', label };
+		}
+		return { kind: 'any', label: val };
+	});
+	const remainingCodes = { ...codesMap };
+	const remainingShorts = { ...shortsMap };
+	for (const wantedLabel of wantedLabels) {
+		if (wantedLabel.kind === 'codes' || wantedLabel.kind === 'any')
+			delete remainingCodes[wantedLabel.label];
+		if (wantedLabel.kind === 'shortcodes' || wantedLabel.kind === 'any')
+			delete remainingShorts[wantedLabel.label];
+	}
+	const remaining = Array.from(
+		new Set([...Object.keys(remainingCodes), ...Object.keys(remainingShorts)]),
+	).sort();
+	const removed = Array.from(
+		new Set(wantedLabels.map((revocationTarget) => revocationTarget.label)),
+	)
+		.filter((requestedLabel) => !remaining.includes(requestedLabel))
+		.sort();
+	if (removed.length === 0) {
+		throw new NodeOperationError(
+			this.getNode(),
+			'No matching labels to remove for this permission.',
+			{ itemIndex },
+		);
+	}
+
+	// Permission deletion for specified label(s)
+	await this.helpers.httpRequest({
+		method: 'PATCH',
+		url: `${instanceUrl}/permissions/${encodeURIComponent(permissionsId)}`,
+		headers: {
+			Authorization: `Bearer ${apiToken}`,
+			Accept: 'application/vnd.api+json',
+			'Content-Type': 'application/vnd.api+json',
+		},
+		body: {
+			data: {
+				id: permissionsId,
+				type: 'io.cozy.permissions',
+				attributes: {
+					codes: remainingCodes,
+					shortcodes: remainingShorts,
+				},
+			},
+		},
+		json: true,
+	});
+	ezlog('revokedLabels', { permissionsId, labelsToRevoke, removed, remaining, useLabels: true });
+	return { permissionsId, removed, remaining, status: 'patched' };
+}
