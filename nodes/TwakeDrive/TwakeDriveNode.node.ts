@@ -33,12 +33,27 @@ export class TwakeDriveNode implements INodeType {
 		usableAsTool: true,
 		properties: [
 			{
+				displayName: 'Resource',
+				name: 'resource',
+				type: 'options',
+				noDataExpression: true,
+				default: 'file',
+				options: [
+					{ name: 'File', value: 'file' },
+					{ name: 'Folder', value: 'folder' },
+					{ name: 'Share', value: 'share' },
+				],
+				description: 'Select the type of item to operate on',
+			},
+			// Operation — FILE
+			{
 				displayName: 'Operation',
 				name: 'operation',
 				type: 'options',
 				noDataExpression: true,
+				default: 'listFiles',
+				displayOptions: { show: { resource: ['file'] } },
 				options: [
-					// FILES OPERATIONS
 					{
 						name: 'Copy File',
 						value: 'copyFile',
@@ -88,12 +103,22 @@ export class TwakeDriveNode implements INodeType {
 						description: 'Upload a received file in the Twake instance in designated directory',
 						action: 'Upload a received file in the twake instance in designated directory',
 					},
-					// DIRECTORIES OPERATIONS
+				],
+			},
+			// Operation — FOLDER
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				default: 'createFolder',
+				displayOptions: { show: { resource: ['folder'] } },
+				options: [
 					{
 						name: 'Create Folder',
 						value: 'createFolder',
 						description:
-							'Create a new directory in the Twake instance. Destination directory can be specified',
+							'Create a new directory in the Twake instance. Destination directory can be specified.',
 						action: 'Create a new directory in the twake instance',
 					},
 					{
@@ -114,23 +139,32 @@ export class TwakeDriveNode implements INodeType {
 						description: 'Rename the selected folder',
 						action: 'Rename the selected folder',
 					},
-					// SHARING OPERATIONS
-					{
-						name: 'Share by Link (File or Folder)',
-						value: 'shareByLink',
-						description: 'Create a share link for a file or a folder',
-						action: 'Create a share link for a file or a folder',
-					},
+				],
+			},
+			// Operation — SHARE
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				default: 'shareByLink',
+				displayOptions: { show: { resource: ['share'] } },
+				options: [
 					{
 						name: 'Delete Share (by Permissions ID)',
 						value: 'deleteShare',
 						description: 'Delete a share by its permissions ID (revokes all codes)',
 						action: 'Delete a share by its permissions ID',
 					},
+					{
+						name: 'Share by Link (File or Folder)',
+						value: 'shareByLink',
+						description: 'Create a share link for a file or a folder',
+						action: 'Create a share link for a file or a folder',
+					},
 				],
-
-				default: 'listFiles',
 			},
+
 			{
 				displayName: 'File or Directory ID',
 				name: 'fileOrDirId',
@@ -144,7 +178,7 @@ export class TwakeDriveNode implements INodeType {
 				},
 			},
 			{
-				displayName: 'Permissions ID',
+				displayName: 'Permissions Name or ID',
 				name: 'permissionsId',
 				type: 'options',
 				typeOptions: {
@@ -152,7 +186,8 @@ export class TwakeDriveNode implements INodeType {
 				},
 				default: '',
 				required: true,
-				description: 'Select the share to delete (labels · id)',
+				description:
+					'Select the share to delete (labels · ID). Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 				displayOptions: { show: { operation: ['deleteShare'] } },
 			},
 			{
@@ -160,11 +195,11 @@ export class TwakeDriveNode implements INodeType {
 				name: 'useLabels',
 				type: 'boolean',
 				default: false,
-				description: 'ON: revoke only selected labels. OFF: delete the whole share',
+				description: 'Whether to revoke only selected labels. When disabled, the entire share is deleted.',
 				displayOptions: { show: { operation: ['deleteShare'] } },
 			},
 			{
-				displayName: 'Labels to Revoke (optional)',
+				displayName: 'Labels to Revoke (Optional)',
 				name: 'labelsToRevoke',
 				type: 'multiOptions',
 				typeOptions: {
@@ -172,10 +207,9 @@ export class TwakeDriveNode implements INodeType {
 					loadOptionsDependsOn: ['permissionsId'],
 				},
 				default: [],
-				required: false,
 				placeholder: 'Leave empty to delete the entire share',
 				description:
-					'Select labels to revoke. If empty (or switch OFF), the entire share is deleted',
+					'Select labels to revoke. If empty (or switch OFF), the entire share is deleted. Choose from the list, or specify IDs using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 				displayOptions: { show: { operation: ['deleteShare'], useLabels: [true] } },
 			},
 
@@ -185,8 +219,8 @@ export class TwakeDriveNode implements INodeType {
 				type: 'options',
 				default: 'read',
 				options: [
-					{ name: 'Read-only', value: 'read' },
-					{ name: 'Can edit', value: 'write' },
+					{ name: 'Read-Only', value: 'read' },
+					{ name: 'Can Edit', value: 'write' },
 				],
 				displayOptions: { show: { operation: ['shareByLink'] } },
 			},
@@ -222,11 +256,11 @@ export class TwakeDriveNode implements INodeType {
 								type: 'options',
 								default: 's',
 								options: [
-									{ name: 'Seconds', value: 's' },
-									{ name: 'Minutes', value: 'm' },
-									{ name: 'Hours', value: 'h' },
 									{ name: 'Days', value: 'D' },
+									{ name: 'Hours', value: 'h' },
+									{ name: 'Minutes', value: 'm' },
 									{ name: 'Months', value: 'M' },
+									{ name: 'Seconds', value: 's' },
 									{ name: 'Years', value: 'Y' },
 								],
 							},
@@ -251,13 +285,13 @@ export class TwakeDriveNode implements INodeType {
 				displayOptions: { show: { operation: ['shareByLink'], usePassword: [true] } },
 			},
 			{
-				displayName: 'Codes (Comma-separated labels)',
+				displayName: 'Codes (Comma-Separated Labels)',
 				name: 'codes',
 				type: 'string',
 				default: '',
 				placeholder: 'e.g. link or clientA,clientB ...',
 				description:
-					'Comma-separated labels; This will be the key(s) of the created codes, each creates a separate link that can be revoked independently.',
+					'Comma-separated labels; This will be the key(s) of the created codes, each creates a separate link that can be revoked independently',
 				displayOptions: { show: { operation: ['shareByLink'] } },
 			},
 
@@ -289,7 +323,7 @@ export class TwakeDriveNode implements INodeType {
 				name: 'dirId',
 				type: 'string',
 				default: '',
-				description: 'ID of the targeted directory',
+				description: 'ID of the destination directory',
 				displayOptions: {
 					show: {
 						operation: [
@@ -375,8 +409,8 @@ export class TwakeDriveNode implements INodeType {
 				type: 'options',
 				default: 'all',
 				options: [
-					{ name: 'All files', value: 'all' },
-					{ name: 'Folder contents', value: 'byDirectory' },
+					{ name: 'All Files', value: 'all' },
+					{ name: 'Folder Contents', value: 'byDirectory' },
 				],
 				displayOptions: { show: { operation: ['listFiles'] } },
 			},
