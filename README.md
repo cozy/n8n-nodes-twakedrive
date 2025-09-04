@@ -2,15 +2,15 @@
 
 This is an n8n community node. It lets you use Twake Drive in your n8n workflows.
 
-Twake Drive is an open source file sharing and storage platform focused on privacy and security. It’s built for efficient team collaboration with shared spaces, real-time editing, and seamless file organization.
+[Twake Drive](https://twake-drive.com/) is an open source file sharing and storage platform focused on privacy and security. It’s built for efficient team collaboration with shared spaces, real-time editing, and seamless file organization. The Twake Drive app relies ont the [Cozy stack API](https://github.com/cozy/cozy-stack/tree/master/docs) for permissions management and files operations.
 
 [n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
 
-[Installation](#installation)
-[Operations](#operations)
-[Credentials](#credentials)
-[Compatibility](#compatibility)
-[Resources](#resources)
+[Installation](#installation)  
+[Operations](#operations)  
+[Credentials](#credentials)  
+[Compatibility](#compatibility)  
+[Resources](#resources)  
 [Version history](#version-history)
 
 ## Installation
@@ -123,9 +123,13 @@ Tested with:
 
 - [n8n community nodes documentation](https://docs.n8n.io/integrations/#community-nodes)
 
-This is a community node. If you encounter issues or have feature requests, feel free to open an issue or PR on the [GitHub repository](https://github.com/KillianCourvoisier/n8n-nodes-twakedrive).
+This is a community node. If you encounter issues or have feature requests, feel free to open an issue or PR on the [GitHub repository](https://github.com/cozy/n8n-nodes-twakedrive).
 
 ## Version history
+
+### 1.1.1
+
+- Transfer repo ownership to [Cozy](https://github.com/cozy/) Github organisation
 
 ### 1.1.0
 
@@ -140,3 +144,11 @@ This is a community node. If you encounter issues or have feature requests, feel
 
 - Connect via a locally generated token
 - Files operations (as listed above)
+
+## Useful links
+
+- [Twake Drive website](https://twake-drive.com/)
+- [Twake Drive on GitHub](https://github.com/cozy/cozy-drive)
+- [Cozy Stack documentation](https://docs.cozy.io/en/cozy-stack/)
+- [Cozy stack on Github](https://github.com/cozy/cozy-stack/)
+- [Twake Drive node on GitHub](https://github.com/cozy/n8n-nodes-twakedrive)
