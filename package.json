@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-twakedrive",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"description": "Custom community node to interact with Twake Drive",
 	"keywords": [
 		"n8n-community-node-package"
@@ -13,7 +13,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/KillianCourvoisier/n8n-nodes-twakedrive.git"
+		"url": "https://github.com/cozy/n8n-nodes-twakedrive.git"
 	},
 	"engines": {
 		"node": ">=20.15"
