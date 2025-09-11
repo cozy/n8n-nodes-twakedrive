@@ -1,28 +1,5 @@
 import { IExecuteFunctions, INodeExecutionData, NodeOperationError } from 'n8n-workflow';
 
-export async function getOneFile(
-	this: IExecuteFunctions,
-	itemIndex: number,
-	ezlog: (name: string, value: any) => void,
-	credentials: { instanceUrl: string; apiToken: string },
-) {
-	const instanceUrl = credentials.instanceUrl;
-	const fileId = this.getNodeParameter('targetId', itemIndex, '') as string;
-	const fileUrl = `${instanceUrl}/files/${fileId}`;
-	const realToken = credentials.apiToken;
-	const fileResponse = await this.helpers.httpRequest({
-		method: 'GET',
-		url: fileUrl,
-		headers: {
-			Authorization: `Bearer ${realToken}`,
-			Accept: 'application/vnd.api+json',
-		},
-		json: true,
-	});
-	ezlog('fileResponse', fileResponse);
-	return { fileResponse };
-}
-
 export async function listFiles(
 	this: IExecuteFunctions,
 	itemIndex: number,

@@ -105,12 +105,6 @@ export class TwakeDriveNode implements INodeType {
 						action: 'Delete the selected file in the twake instance',
 					},
 					{
-						name: 'Get One File',
-						value: 'getOneFile',
-						description: 'Retrieve a single file or directory by ID',
-						action: 'Retrieve a single file or directory by ID.',
-					},
-					{
 						name: 'Move File',
 						value: 'moveFile',
 						description: 'Move the targeted file to another directory',
@@ -199,7 +193,7 @@ export class TwakeDriveNode implements INodeType {
 					'ID of the targeted file or directory. If the target is a folder and value is left empty , root (io.cozy.files.root-dir) is used',
 				displayOptions: {
 					show: {
-						operation: ['getOneFile', 'deleteFile', 'shareByLink', 'listFiles'],
+						operation: ['deleteFile', 'shareByLink', 'listFiles'],
 					},
 				},
 			},
@@ -575,9 +569,6 @@ export class TwakeDriveNode implements INodeType {
 					//////////////////////
 					// FILES OPERATIONS //
 					//////////////////////
-					case 'getOneFile':
-						await TwakeFilesHelpers.getOneFile.call(this, itemIndex, ezlog, credentials);
-						break;
 					case 'listFiles':
 						await TwakeFilesHelpers.listFiles.call(this, itemIndex, ezlog, credentials);
 						break;
