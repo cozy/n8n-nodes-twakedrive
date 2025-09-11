@@ -8,7 +8,7 @@ import type {
 import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
 import * as TwakeFilesHelpers from './FilesHelpers/FilesHelpers';
 import * as TwakeDirectoriesHelpers from './DirectoriesHelpers/DirectoriesHelpers';
-import * as TwakeSharingHelpers from './SharingHelpers/SharingHelpers';
+import * as TwakeShareHelpers from './ShareHelpers/ShareHelpers';
 import { createEzlog } from './utils/ezlog';
 
 export class TwakeDriveNode implements INodeType {
@@ -608,10 +608,10 @@ export class TwakeDriveNode implements INodeType {
 					// SHARING OPERATIONS //
 					////////////////////////
 					case 'shareByLink':
-						await TwakeSharingHelpers.shareByLink.call(this, itemIndex, ezlog, credentials);
+						await TwakeShareHelpers.shareByLink.call(this, itemIndex, ezlog, credentials);
 						break;
 					case 'deleteShare':
-						await TwakeSharingHelpers.deleteShareByLink.call(this, itemIndex, ezlog, credentials);
+						await TwakeShareHelpers.deleteShareByLink.call(this, itemIndex, ezlog, credentials);
 						break;
 				}
 			} catch (error) {
