@@ -32,70 +32,53 @@ export async function listFiles(
 	const instanceUrl = credentials.instanceUrl;
 	const realToken = credentials.apiToken;
 
-	const listMode = this.getNodeParameter('listMode', itemIndex, 'all') as string;
 	const listDirId = this.getNodeParameter('listDirId', itemIndex, '') as string;
-	// BY DIRECTORY MODE
-	if (listMode === 'byDirectory') {
-		if (!listDirId) {
-			throw new NodeOperationError(
-				this.getNode(),
-				'Directory ID is required for "Folder contents"',
-				{ itemIndex },
-			);
-		}
 
-		const wantedFilesArray: any[] = [];
-		let cursor: string | null = null;
-
-		while (true) {
-			const qs: Record<string, string | number> = {};
-			// limited to 30 (cozy API default), can be increase
-			qs['page[limit]'] = 30;
-			if (cursor) qs['page[cursor]'] = cursor;
-
-			const resp = await this.helpers.httpRequest({
-				method: 'GET',
-				url: `${instanceUrl}/files/${encodeURIComponent(listDirId)}`,
-				qs,
-				headers: {
-					Authorization: `Bearer ${realToken}`,
-					Accept: 'application/vnd.api+json',
-				},
-				json: true,
-			});
-
-			const chunk = Array.isArray(resp?.included) ? resp.included : [];
-			if (chunk.length) wantedFilesArray.push(...chunk);
-
-			const nextPageLink = resp?.links?.next as string | undefined;
-			cursor = nextPageLink
-				? new URL(nextPageLink, instanceUrl).searchParams.get('page[cursor]')
-				: null;
-			if (!cursor) break;
-		}
-
-		ezlog('listByDirectory.total', wantedFilesArray.length);
-		ezlog('listByDirectory.files', wantedFilesArray);
-		return { wantedFilesArray };
+	if (!listDirId) {
+		throw new NodeOperationError(this.getNode(), 'Directory ID is required', {
+			itemIndex,
+		});
 	}
-	// ALL MODE
-	const fileListUrl = `${instanceUrl}/data/io.cozy.files/_all_docs?include_docs=true&Fields=name,metadata,type,id,cozyMetadata`;
 
-	const filesListResponse = await this.helpers.httpRequest({
-		method: 'GET',
-		url: fileListUrl,
-		headers: {
-			Authorization: `Bearer ${realToken}`,
-			Accept: 'application/json',
-		},
-		json: true,
-	});
-
-	const docsArray = filesListResponse?.rows ?? [];
 	const wantedFilesArray: any[] = [];
-	for (let i = 0; i < docsArray.length; i++) {
-		wantedFilesArray.push(docsArray[i]);
+	const maxItems = 2000; // hard cap to avoid huge arrays
+	let cursor: string | null = null;
+
+	while (true) {
+		const qs: Record<string, string | number> = {};
+		// limited to 30 (cozy API default), can be increase
+		qs['page[limit]'] = 30;
+		if (cursor) qs['page[cursor]'] = cursor;
+
+		const resp = await this.helpers.httpRequest({
+			method: 'GET',
+			url: `${instanceUrl}/files/${encodeURIComponent(listDirId)}`,
+			qs,
+			headers: {
+				Authorization: `Bearer ${realToken}`,
+				Accept: 'application/vnd.api+json',
+			},
+			json: true,
+		});
+
+		const chunk = Array.isArray(resp?.included) ? resp.included : [];
+		if (chunk.length) wantedFilesArray.push(...chunk);
+		if (wantedFilesArray.length >= maxItems) {
+			ezlog('listByDirectory.cappedAtMaxItems', {
+				maxItems: maxItems,
+				current: wantedFilesArray.length,
+			});
+			break;
+		}
+
+		const nextPageLink = resp?.links?.next as string | undefined;
+		cursor = nextPageLink
+			? new URL(nextPageLink, instanceUrl).searchParams.get('page[cursor]')
+			: null;
+		if (!cursor) break;
 	}
+
+	ezlog('listByDirectory', { total: wantedFilesArray.length, files: wantedFilesArray });
 	return { wantedFilesArray };
 }
 

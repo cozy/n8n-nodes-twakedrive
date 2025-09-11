@@ -83,7 +83,7 @@ export class TwakeDriveNode implements INodeType {
 						name: 'List Files',
 						value: 'listFiles',
 						description: 'List all files in the Twake instance',
-						action: 'List all files in the twake instance',
+						action: 'List all files in the targeted directory',
 					},
 					{
 						name: 'Move File',
@@ -195,7 +195,8 @@ export class TwakeDriveNode implements INodeType {
 				name: 'useLabels',
 				type: 'boolean',
 				default: false,
-				description: 'Whether to revoke only selected labels. When disabled, the entire share is deleted.',
+				description:
+					'Whether to revoke only selected labels. When disabled, the entire share is deleted.',
 				displayOptions: { show: { operation: ['deleteShare'] } },
 			},
 			{
@@ -404,24 +405,13 @@ export class TwakeDriveNode implements INodeType {
 				},
 			},
 			{
-				displayName: 'Listing Mode',
-				name: 'listMode',
-				type: 'options',
-				default: 'all',
-				options: [
-					{ name: 'All Files', value: 'all' },
-					{ name: 'Folder Contents', value: 'byDirectory' },
-				],
-				displayOptions: { show: { operation: ['listFiles'] } },
-			},
-			{
 				displayName: 'Directory ID',
 				name: 'listDirId',
 				type: 'string',
 				default: '',
 				description: 'ID of the directory to list',
 				displayOptions: {
-					show: { operation: ['listFiles'], listMode: ['byDirectory'] },
+					show: { operation: ['listFiles'] },
 				},
 			},
 			{
