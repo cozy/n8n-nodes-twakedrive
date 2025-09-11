@@ -6,6 +6,7 @@ export async function shareByLink(
 	ezlog: (name: string, value: any) => void,
 	credentials: { instanceUrl: string; apiToken: string },
 ) {
+	const itemBag: { [key: string]: any } = {};
 	const instanceUrl = credentials.instanceUrl;
 	const realToken = credentials.apiToken;
 
@@ -75,8 +76,10 @@ export async function shareByLink(
 				shareUrls[label] = `${driveBase}/public?sharecode=${personalToken}`;
 			}
 		}
-		ezlog('share.urls', shareUrls);
-		ezlog('share.permissionsId', permissionsId);
+		itemBag.shareUrls = shareUrls;
+		itemBag.permissionId = permissionsId;
+
+		ezlog('shareByLink', itemBag);
 
 		return { share: { permissionsId, shareUrls } };
 	} catch (error: any) {
@@ -90,6 +93,7 @@ export async function deleteShareByLink(
 	ezlog: (name: string, value: any) => void,
 	credentials: { instanceUrl: string; apiToken: string },
 ) {
+	const itemBag: { [key: string]: any } = {};
 	const { instanceUrl, apiToken } = credentials;
 	const rawPerm = this.getNodeParameter('permissionsId', itemIndex, '') as string;
 	if (!rawPerm) {
@@ -116,16 +120,16 @@ export async function deleteShareByLink(
 
 	// Full permission deletion (labels OFF or no label specified)
 	if (!useLabels || labelsToRevoke.length === 0) {
+		itemBag.fullPermissionDeletion = true;
+		itemBag.deletionType = !useLabels ? 'toggle_off' : 'no_labels';
 		await this.helpers.httpRequest({
 			method: 'DELETE',
 			url: `${instanceUrl}/permissions/${encodeURIComponent(permissionsId)}`,
 			headers: { Authorization: `Bearer ${apiToken}`, Accept: 'application/vnd.api+json' },
 			json: true,
 		});
-		ezlog('deletedPermission', {
-			permissionsId,
-			type: !useLabels ? 'toggle_off' : 'no_labels',
-		});
+		itemBag.deletedPermissionId = permissionsId;
+		ezlog('deleteShareByLink', itemBag);
 		return { permissionsId, removed: 'ALL', remaining: [], status: 'deleted' };
 	}
 
@@ -187,6 +191,11 @@ export async function deleteShareByLink(
 		},
 		json: true,
 	});
-	ezlog('revokedLabels', { permissionsId, labelsToRevoke, removed, remaining, useLabels: true });
+	itemBag.fullPermissionDeletion = false;
+	itemBag.deletionType = 'by_label';
+	itemBag.permissionId = permissionsId;
+	itemBag.revokedLabels = labelsToRevoke;
+	itemBag.remainingLabels = remaining;
+	ezlog('deleteByShareLink', itemBag);
 	return { permissionsId, removed, remaining, status: 'patched' };
 }

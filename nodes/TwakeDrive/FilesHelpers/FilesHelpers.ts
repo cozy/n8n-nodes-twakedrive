@@ -6,14 +6,14 @@ export async function listFiles(
 	ezlog: (name: string, value: any) => void,
 	credentials: { instanceUrl: string; apiToken: string },
 ) {
+	const itemBag: { [key: string]: any } = {};
 	const instanceUrl = credentials.instanceUrl;
 	const realToken = credentials.apiToken;
-
 	const targetType = this.getNodeParameter('targetType', itemIndex, 'folder') as 'file' | 'folder';
+	const idParam = this.getNodeParameter('targetId', itemIndex, '') as string;
+	const wantedFilesArray: any[] = [];
 
-	const idParam =
-		(this.getNodeParameter('targetId', itemIndex, '') as string) ||
-		(this.getNodeParameter('listDirId', itemIndex, '') as string);
+	itemBag.targetType = targetType;
 
 	if (targetType === 'file') {
 		if (!idParam) {
@@ -21,7 +21,7 @@ export async function listFiles(
 				itemIndex,
 			});
 		}
-
+		itemBag.targetId = idParam;
 		const resp = await this.helpers.httpRequest({
 			method: 'GET',
 			url: `${instanceUrl}/files/${encodeURIComponent(idParam)}`,
@@ -33,16 +33,16 @@ export async function listFiles(
 		});
 
 		const single = resp?.data ?? resp;
-		const wantedFilesArray = [single];
+		wantedFilesArray.push(single);
+		itemBag.file = wantedFilesArray;
+		ezlog('listFiles', itemBag);
 
-		ezlog('list.singleFile', { id: idParam });
 		return { wantedFilesArray };
 	}
 
 	// targetType === 'folder'
 	const listDirId = idParam || 'io.cozy.files.root-dir';
-
-	const wantedFilesArray: any[] = [];
+	itemBag.targetId = listDirId;
 	const maxItems = 2000;
 	let cursor: string | null = null;
 
@@ -66,10 +66,10 @@ export async function listFiles(
 		const chunk = Array.isArray(resp?.included) ? resp.included : [];
 		if (chunk.length) wantedFilesArray.push(...chunk);
 		if (wantedFilesArray.length >= maxItems) {
-			ezlog('listByDirectory.cappedAtMaxItems', {
+			itemBag.cappedAtMaxItems = {
 				maxItems,
 				current: wantedFilesArray.length,
-			});
+			};
 			break;
 		}
 
@@ -79,8 +79,10 @@ export async function listFiles(
 			: null;
 		if (!cursor) break;
 	}
+	itemBag.total = wantedFilesArray.length;
+	itemBag.files = wantedFilesArray;
 
-	ezlog('listFiles', { dirId: listDirId, total: wantedFilesArray.length });
+	ezlog('listFiles', itemBag);
 	return { wantedFilesArray };
 }
 
@@ -91,12 +93,15 @@ export async function uploadFile(
 	ezlog: (name: string, value: any) => void,
 	credentials: { instanceUrl: string; apiToken: string },
 ) {
+	const itemBag: { [key: string]: any } = {};
 	const instanceUrl = credentials.instanceUrl;
 	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
 	const fileUrl = `${instanceUrl}/files/${dirId}`;
 	const binPropName = this.getNodeParameter('binaryPropertyName', itemIndex, 'data');
 	const binaryData = items[itemIndex].binary?.[binPropName];
 	const realToken = credentials.apiToken;
+
+	itemBag.dirId = dirId || 'io.cozy.files.root-dir';
 
 	if (!binaryData) {
 		throw new NodeOperationError(this.getNode(), 'UploadFile - Binary data not found', {
@@ -124,9 +129,10 @@ export async function uploadFile(
 		},
 		body: fileBuffer,
 	});
-	ezlog('createFileResponse', createdFileResponse);
 	const createdFileId = createdFileResponse.data.id;
-	ezlog('createdFileID', createdFileId);
+	itemBag.uploadedFileId = createdFileId;
+	itemBag.file = createdFileResponse;
+	ezlog('uploadFile', itemBag);
 	return { createdFileId };
 }
 
@@ -136,6 +142,7 @@ export async function copyFile(
 	ezlog: (name: string, value: any) => void,
 	credentials: { instanceUrl: string; apiToken: string },
 ): Promise<void> {
+	const itemBag: { [key: string]: any } = {};
 	const instanceUrl = credentials.instanceUrl;
 	const fileId = this.getNodeParameter('fileId', itemIndex) as string;
 	const dirId = this.getNodeParameter('dirId', itemIndex) as string;
@@ -145,6 +152,9 @@ export async function copyFile(
 		: undefined;
 	const realToken = credentials.apiToken;
 	const qs: Record<string, string> = {};
+
+	itemBag.dirId = dirId || 'io.cozy.files.root-dir';
+	itemBag.customName = wantsCustomName ? newName : null;
 
 	if (dirId) {
 		qs.DirID = dirId;
@@ -163,7 +173,9 @@ export async function copyFile(
 		qs,
 		json: true,
 	});
-	ezlog('copiedFile', copiedFile);
+	itemBag.copyId = copiedFile.data?.id;
+	itemBag.file = copiedFile;
+	ezlog('copyFile', itemBag);
 }
 
 export async function deleteFile(
@@ -172,6 +184,7 @@ export async function deleteFile(
 	ezlog: (name: string, value: any) => void,
 	credentials: { instanceUrl: string; apiToken: string },
 ) {
+	const itemBag: { [key: string]: any } = {};
 	const instanceUrl = credentials.instanceUrl;
 	const fileId = this.getNodeParameter('targetId', itemIndex, '') as string;
 	const fileUrl = `${instanceUrl}/files/${fileId}`;
@@ -185,7 +198,9 @@ export async function deleteFile(
 		},
 		json: true,
 	});
-	ezlog('deletedFileResponse', deletedFileResponse);
+	itemBag.deletedFileId = deletedFileResponse.data?.id;
+	itemBag.deletedFile = deletedFileResponse;
+	ezlog('deleteFile', itemBag);
 	return { deletedFileResponse };
 }
 
@@ -195,12 +210,18 @@ export async function createFileFromText(
 	ezlog: (name: string, value: any) => void,
 	credentials: { instanceUrl: string; apiToken: string },
 ) {
+	const itemBag: { [key: string]: any } = {};
 	const instanceUrl = credentials.instanceUrl;
 	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
 	const textContent = this.getNodeParameter('textContent', itemIndex, '') as string;
 	const fileName = this.getNodeParameter('newName', itemIndex, '') as string;
 	const fileUrl = `${instanceUrl}/files/${dirId}`;
 	const realToken = credentials.apiToken;
+
+	itemBag.destinationDirId = dirId || 'io.cozy.files.root-dir';
+	itemBag.textContent = textContent;
+	itemBag.filename = fileName;
+
 	const createdFileResponse = await this.helpers.httpRequest({
 		method: 'POST',
 		url: fileUrl,
@@ -214,7 +235,9 @@ export async function createFileFromText(
 		},
 		body: textContent,
 	} as any);
-	ezlog('createdFileResponse', createdFileResponse);
+	itemBag.createdFileId = createdFileResponse.data?.id;
+	itemBag.createdFile = createdFileResponse;
+	ezlog('createFileFromText', itemBag);
 	return { createdFileResponse };
 }
 
@@ -224,12 +247,12 @@ export async function moveFile(
 	ezlog: (name: string, value: any) => void,
 	credentials: { instanceUrl: string; apiToken: string },
 ) {
+	const itemBag: { [key: string]: any } = {};
 	const instanceUrl = credentials.instanceUrl;
 	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
-	ezlog('dirID', dirId);
+	itemBag.destinationDirId = dirId || 'io.cozy.files.root-dir';
 	const fileId = this.getNodeParameter('fileId', itemIndex, '') as string;
 	const fileUrl = `${instanceUrl}/files/${fileId}`;
-	ezlog('fileUrl', fileUrl);
 	const realToken = credentials.apiToken;
 
 	const movedFileResponse = await this.helpers.httpRequest({
@@ -248,7 +271,9 @@ export async function moveFile(
 			},
 		}),
 	});
-	ezlog('movedFileResponse', movedFileResponse);
+	itemBag.movedFileId = movedFileResponse.data?.id;
+	itemBag.movedFile = movedFileResponse;
+	ezlog('moveFile', itemBag);
 	return { movedFileResponse };
 }
 
@@ -259,12 +284,11 @@ export async function updateFile(
 	ezlog: (name: string, value: any) => void,
 	credentials: { instanceUrl: string; apiToken: string },
 ) {
+	const itemBag: { [key: string]: any } = {};
 	const instanceUrl = credentials.instanceUrl;
-	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
-	ezlog('dirID', dirId);
 	const fileId = this.getNodeParameter('fileId', itemIndex, '') as string;
+	itemBag.fileId = fileId;
 	const fileUrl = `${instanceUrl}/files/${fileId}`;
-	ezlog('fileUrl', fileUrl);
 	const binPropName = this.getNodeParameter('binaryPropertyName', itemIndex, 'data');
 	const binaryData = items[itemIndex].binary?.[binPropName];
 	const realToken = credentials.apiToken;
@@ -293,10 +317,10 @@ export async function updateFile(
 		},
 		body: fileBuffer,
 	});
-	ezlog('updatedFileResponse', updatedFileResponse);
 
 	// Change filename if asked
 	if (newName) {
+		itemBag.newFilename = newName;
 		const changedFilenameResponse = await this.helpers.httpRequest({
 			method: 'PATCH',
 			url: fileUrl,
@@ -316,8 +340,11 @@ export async function updateFile(
 			},
 			json: true,
 		});
-		ezlog('changedFileNameResponse', changedFilenameResponse);
+		itemBag.updatedFile = changedFilenameResponse;
+		ezlog('updateFile', itemBag);
 		return { changedFilenameResponse };
 	}
+	itemBag.updatedFile = updatedFileResponse;
+	ezlog('updateFile', itemBag);
 	return { updatedFileResponse };
 }

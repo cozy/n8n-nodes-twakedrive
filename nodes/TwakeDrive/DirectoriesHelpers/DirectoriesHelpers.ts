@@ -4,10 +4,10 @@ import { NodeOperationError } from 'n8n-workflow';
 export async function createFolder(
 	this: IExecuteFunctions,
 	itemIndex: number,
-	items: INodeExecutionData[],
 	ezlog: (name: string, value: any) => void,
 	credentials: { instanceUrl: string; apiToken: string },
 ) {
+	const itemBag: { [key: string]: any } = {};
 	const instanceUrl = credentials.instanceUrl;
 	const realToken = credentials.apiToken;
 
@@ -46,10 +46,11 @@ export async function createFolder(
 				itemIndex,
 			});
 		}
+		itemBag.createdfolderId = createdFolderId;
+		itemBag.createdFolderParent = targetDirId;
+		itemBag.createdFolder = response?.data;
 
-		ezlog('createdFolderId', createdFolderId);
-		ezlog('createdFolderParent', targetDirId);
-		ezlog('createdFolder', response?.data);
+		ezlog('createFolder', itemBag);
 
 		return { createdFolderId };
 	} catch (error: any) {
@@ -63,6 +64,7 @@ export async function deleteFolder(
 	ezlog: (name: string, value: any) => void,
 	credentials: { instanceUrl: string; apiToken: string },
 ) {
+	const itemBag: { [key: string]: any } = {};
 	const instanceUrl = credentials.instanceUrl;
 	const realToken = credentials.apiToken;
 
@@ -83,8 +85,8 @@ export async function deleteFolder(
 			},
 			json: true,
 		});
-
-		ezlog('deletedFolderId', dirId);
+		itemBag.deletedFolderId = dirId;
+		ezlog('deleteFolder', itemBag);
 		return { deletedFolderId: dirId };
 	} catch (error: any) {
 		throw new NodeOperationError(this.getNode(), error, { itemIndex });
@@ -97,6 +99,7 @@ export async function moveFolder(
 	ezlog: (name: string, value: any) => void,
 	credentials: { instanceUrl: string; apiToken: string },
 ) {
+	const itemBag: { [key: string]: any } = {};
 	const instanceUrl = credentials.instanceUrl;
 	const realToken = credentials.apiToken;
 
@@ -131,9 +134,9 @@ export async function moveFolder(
 			},
 		}),
 	});
-
-	ezlog('movedFolderId', folderId);
-	ezlog('movedFolderDest', destDirId);
+	itemBag.movedFolderId = folderId;
+	itemBag.destinationFolderId = destDirId;
+	ezlog('moveFolder', itemBag);
 	return { movedFolderResponse };
 }
 
@@ -143,6 +146,7 @@ export async function renameFolder(
 	ezlog: (name: string, value: any) => void,
 	credentials: { instanceUrl: string; apiToken: string },
 ) {
+	const itemBag: { [key: string]: any } = {};
 	const instanceUrl = credentials.instanceUrl;
 	const realToken = credentials.apiToken;
 	const folderId = this.getNodeParameter('folderId', itemIndex, '') as string;
@@ -171,7 +175,8 @@ export async function renameFolder(
 		}),
 		json: true,
 	});
-	ezlog('renamedFolderId', folderId);
-	ezlog('renamedFolderNewName', newFolderName);
+	itemBag.renamedFolderId = folderId;
+	itemBag.renamedFolderNewName = newFolderName;
+	ezlog('renameFolder', itemBag);
 	return { renameResponse };
 }
