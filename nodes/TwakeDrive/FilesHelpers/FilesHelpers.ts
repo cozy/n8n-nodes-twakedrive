@@ -7,7 +7,7 @@ export async function getOneFile(
 	credentials: { instanceUrl: string; apiToken: string },
 ) {
 	const instanceUrl = credentials.instanceUrl;
-	const fileId = this.getNodeParameter('fileOrDirId', itemIndex, '') as string;
+	const fileId = this.getNodeParameter('targetId', itemIndex, '') as string;
 	const fileUrl = `${instanceUrl}/files/${fileId}`;
 	const realToken = credentials.apiToken;
 	const fileResponse = await this.helpers.httpRequest({
@@ -32,21 +32,46 @@ export async function listFiles(
 	const instanceUrl = credentials.instanceUrl;
 	const realToken = credentials.apiToken;
 
-	const listDirId = this.getNodeParameter('listDirId', itemIndex, '') as string;
+	const targetType = this.getNodeParameter('targetType', itemIndex, 'folder') as 'file' | 'folder';
 
-	if (!listDirId) {
-		throw new NodeOperationError(this.getNode(), 'Directory ID is required', {
-			itemIndex,
+	const idParam =
+		(this.getNodeParameter('targetId', itemIndex, '') as string) ||
+		(this.getNodeParameter('listDirId', itemIndex, '') as string);
+
+	if (targetType === 'file') {
+		if (!idParam) {
+			throw new NodeOperationError(this.getNode(), 'File ID is required when Target = "File"', {
+				itemIndex,
+			});
+		}
+
+		const resp = await this.helpers.httpRequest({
+			method: 'GET',
+			url: `${instanceUrl}/files/${encodeURIComponent(idParam)}`,
+			headers: {
+				Authorization: `Bearer ${realToken}`,
+				Accept: 'application/vnd.api+json',
+			},
+			json: true,
 		});
+
+		const single = resp?.data ?? resp;
+		const wantedFilesArray = [single];
+
+		ezlog('list.singleFile', { id: idParam });
+		return { wantedFilesArray };
 	}
 
+	// targetType === 'folder'
+	const listDirId = idParam || 'io.cozy.files.root-dir';
+
 	const wantedFilesArray: any[] = [];
-	const maxItems = 2000; // hard cap to avoid huge arrays
+	const maxItems = 2000;
 	let cursor: string | null = null;
 
 	while (true) {
 		const qs: Record<string, string | number> = {};
-		// limited to 30 (cozy API default), can be increase
+		// limited to 30 (cozy API default), can be increased
 		qs['page[limit]'] = 30;
 		if (cursor) qs['page[cursor]'] = cursor;
 
@@ -65,7 +90,7 @@ export async function listFiles(
 		if (chunk.length) wantedFilesArray.push(...chunk);
 		if (wantedFilesArray.length >= maxItems) {
 			ezlog('listByDirectory.cappedAtMaxItems', {
-				maxItems: maxItems,
+				maxItems,
 				current: wantedFilesArray.length,
 			});
 			break;
@@ -78,7 +103,7 @@ export async function listFiles(
 		if (!cursor) break;
 	}
 
-	ezlog('listByDirectory', { total: wantedFilesArray.length, files: wantedFilesArray });
+	ezlog('listFiles', { dirId: listDirId, total: wantedFilesArray.length });
 	return { wantedFilesArray };
 }
 
@@ -171,7 +196,7 @@ export async function deleteFile(
 	credentials: { instanceUrl: string; apiToken: string },
 ) {
 	const instanceUrl = credentials.instanceUrl;
-	const fileId = this.getNodeParameter('fileOrDirId', itemIndex, '') as string;
+	const fileId = this.getNodeParameter('targetId', itemIndex, '') as string;
 	const fileUrl = `${instanceUrl}/files/${fileId}`;
 	const realToken = credentials.apiToken;
 	const deletedFileResponse = await this.helpers.httpRequest({

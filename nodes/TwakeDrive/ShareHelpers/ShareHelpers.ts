@@ -9,7 +9,7 @@ export async function shareByLink(
 	const instanceUrl = credentials.instanceUrl;
 	const realToken = credentials.apiToken;
 
-	const id = this.getNodeParameter('fileOrDirId', itemIndex, '') as string;
+	const id = this.getNodeParameter('targetId', itemIndex, '') as string;
 	if (!id) {
 		throw new NodeOperationError(this.getNode(), 'File or Directory ID is required', { itemIndex });
 	}

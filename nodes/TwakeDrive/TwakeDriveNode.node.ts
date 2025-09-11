@@ -39,12 +39,43 @@ export class TwakeDriveNode implements INodeType {
 				noDataExpression: true,
 				default: 'file',
 				options: [
+					{ name: 'Files/Folders', value: 'fileFolder' },
 					{ name: 'File', value: 'file' },
 					{ name: 'Folder', value: 'folder' },
 					{ name: 'Share', value: 'share' },
 				],
 				description: 'Select the type of item to operate on',
 			},
+			// Operation — FILE/FOLDER
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				default: 'listFiles',
+				displayOptions: { show: { resource: ['fileFolder'] } },
+				options: [
+					{
+						name: 'List Files',
+						value: 'listFiles',
+						description: 'List folder contents or fetch a single file depending on Target',
+						action: 'Retrieve a file or a folder content',
+					},
+				],
+			},
+			{
+				displayName: 'Target',
+				name: 'targetType',
+				type: 'options',
+				options: [
+					{ name: 'Folder', value: 'folder' },
+					{ name: 'File', value: 'file' },
+				],
+				default: 'folder',
+				description: 'Choose whether to list a folder (its contents) or fetch a single file.',
+				displayOptions: { show: { resource: ['fileFolder'], operation: ['listFiles'] } },
+			},
+
 			// Operation — FILE
 			{
 				displayName: 'Operation',
@@ -78,12 +109,6 @@ export class TwakeDriveNode implements INodeType {
 						value: 'getOneFile',
 						description: 'Retrieve a single file or directory by ID',
 						action: 'Retrieve a single file or directory by ID.',
-					},
-					{
-						name: 'List Files',
-						value: 'listFiles',
-						description: 'List all files in the Twake instance',
-						action: 'List all files in the targeted directory',
 					},
 					{
 						name: 'Move File',
@@ -166,14 +191,15 @@ export class TwakeDriveNode implements INodeType {
 			},
 
 			{
-				displayName: 'File or Directory ID',
-				name: 'fileOrDirId',
+				displayName: 'Target ID',
+				name: 'targetId',
 				type: 'string',
 				default: '',
-				description: 'ID of the targeted file or directory',
+				description:
+					'ID of the targeted file or directory. If the target is a folder and value is left empty , root (io.cozy.files.root-dir) is used',
 				displayOptions: {
 					show: {
-						operation: ['getOneFile', 'deleteFile', 'shareByLink'],
+						operation: ['getOneFile', 'deleteFile', 'shareByLink', 'listFiles'],
 					},
 				},
 			},
@@ -402,16 +428,6 @@ export class TwakeDriveNode implements INodeType {
 					show: {
 						operation: ['createFileFromText'],
 					},
-				},
-			},
-			{
-				displayName: 'Directory ID',
-				name: 'listDirId',
-				type: 'string',
-				default: '',
-				description: 'ID of the directory to list',
-				displayOptions: {
-					show: { operation: ['listFiles'] },
 				},
 			},
 			{
