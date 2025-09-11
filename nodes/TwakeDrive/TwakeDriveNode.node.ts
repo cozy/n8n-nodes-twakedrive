@@ -543,7 +543,13 @@ export class TwakeDriveNode implements INodeType {
 			instanceUrl: string;
 			apiToken: string;
 		};
-		const credentials = (await this.getCredentials('twakeDriveApi')) as TwakeCredentials;
+		const originalCredentials = (await this.getCredentials('twakeDriveApi')) as TwakeCredentials;
+		const rawInstanceUrl = originalCredentials.instanceUrl || '';
+		const sanitizedInstanceUrl = rawInstanceUrl.replace(/\/+$/, '');
+		const credentials: TwakeCredentials = {
+			...originalCredentials,
+			instanceUrl: sanitizedInstanceUrl,
+		};
 
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			const ezlog = createEzlog(items as INodeExecutionData[], itemIndex);
