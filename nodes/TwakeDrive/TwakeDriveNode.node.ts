@@ -8,7 +8,7 @@ import type {
 import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
 import * as TwakeFilesHelpers from './FilesHelpers/FilesHelpers';
 import * as TwakeDirectoriesHelpers from './DirectoriesHelpers/DirectoriesHelpers';
-import * as TwakeSharingHelpers from './SharingHelpers/SharingHelpers';
+import * as TwakeShareHelpers from './ShareHelpers/ShareHelpers';
 import { createEzlog } from './utils/ezlog';
 
 export class TwakeDriveNode implements INodeType {
@@ -39,12 +39,43 @@ export class TwakeDriveNode implements INodeType {
 				noDataExpression: true,
 				default: 'file',
 				options: [
+					{ name: 'Files/Folders', value: 'fileFolder' },
 					{ name: 'File', value: 'file' },
 					{ name: 'Folder', value: 'folder' },
 					{ name: 'Share', value: 'share' },
 				],
 				description: 'Select the type of item to operate on',
 			},
+			// Operation — FILE/FOLDER
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				default: 'listFiles',
+				displayOptions: { show: { resource: ['fileFolder'] } },
+				options: [
+					{
+						name: 'List Files',
+						value: 'listFiles',
+						description: 'List a folder content or fetch a single file depending on Target',
+						action: 'Search files and folders',
+					},
+				],
+			},
+			{
+				displayName: 'Target',
+				name: 'targetType',
+				type: 'options',
+				options: [
+					{ name: 'Folder', value: 'folder' },
+					{ name: 'File', value: 'file' },
+				],
+				default: 'folder',
+				description: 'Choose whether to list a folder (its contents) or fetch a single file.',
+				displayOptions: { show: { resource: ['fileFolder'], operation: ['listFiles'] } },
+			},
+
 			// Operation — FILE
 			{
 				displayName: 'Operation',
@@ -57,51 +88,38 @@ export class TwakeDriveNode implements INodeType {
 					{
 						name: 'Copy File',
 						value: 'copyFile',
-						description:
-							'Copy the selected file in the Twake instance in the targeted directory if any',
-						action: 'Copy the selected file in the twake instance in the targeted directory if any',
+						description: 'Copy a file into the target directory if any',
+						action: 'Copy file',
 					},
 					{
 						name: 'Create File From Text',
 						value: 'createFileFromText',
-						description: 'Create a new text file with given text',
-						action: 'Create a new text file with given text',
+						description: 'Create a text file with provided content',
+						action: 'Create file from text',
 					},
 					{
 						name: 'Delete File',
 						value: 'deleteFile',
-						description: 'Delete the selected file in the Twake instance',
-						action: 'Delete the selected file in the twake instance',
-					},
-					{
-						name: 'Get One File',
-						value: 'getOneFile',
-						description: 'Retrieve a single file or directory by ID',
-						action: 'Retrieve a single file or directory by ID.',
-					},
-					{
-						name: 'List Files',
-						value: 'listFiles',
-						description: 'List all files in the Twake instance',
-						action: 'List all files in the twake instance',
+						description: 'Delete a file by ID',
+						action: 'Delete file',
 					},
 					{
 						name: 'Move File',
 						value: 'moveFile',
 						description: 'Move the targeted file to another directory',
-						action: 'Move the targeted file to another directory',
+						action: 'Move file',
 					},
 					{
 						name: 'Update File',
 						value: 'updateFile',
 						description: 'Update the targeted file',
-						action: 'Update the targeted file',
+						action: 'Update file',
 					},
 					{
 						name: 'Upload File',
 						value: 'uploadFile',
 						description: 'Upload a received file in the Twake instance in designated directory',
-						action: 'Upload a received file in the twake instance in designated directory',
+						action: 'Upload file',
 					},
 				],
 			},
@@ -119,25 +137,25 @@ export class TwakeDriveNode implements INodeType {
 						value: 'createFolder',
 						description:
 							'Create a new directory in the Twake instance. Destination directory can be specified.',
-						action: 'Create a new directory in the twake instance',
+						action: 'Create folder',
 					},
 					{
 						name: 'Delete Folder',
 						value: 'deleteFolder',
-						description: 'Delete the selected directory in the Twake instance',
-						action: 'Delete the selected directory in the twake instance',
+						description: 'Delete the selected directory from the Twake instance',
+						action: 'Delete folder',
 					},
 					{
 						name: 'Move Folder',
 						value: 'moveFolder',
 						description: 'Move the selected folder to another directory',
-						action: 'Move the selected folder to another directory',
+						action: 'Move folder',
 					},
 					{
 						name: 'Rename Folder',
 						value: 'renameFolder',
 						description: 'Rename the selected folder',
-						action: 'Rename the selected folder',
+						action: 'Rename folder',
 					},
 				],
 			},
@@ -154,26 +172,27 @@ export class TwakeDriveNode implements INodeType {
 						name: 'Delete Share (by Permissions ID)',
 						value: 'deleteShare',
 						description: 'Delete a share by its permissions ID (revokes all codes)',
-						action: 'Delete a share by its permissions ID',
+						action: 'Delete share',
 					},
 					{
 						name: 'Share by Link (File or Folder)',
 						value: 'shareByLink',
 						description: 'Create a share link for a file or a folder',
-						action: 'Create a share link for a file or a folder',
+						action: 'Create share',
 					},
 				],
 			},
 
 			{
-				displayName: 'File or Directory ID',
-				name: 'fileOrDirId',
+				displayName: 'Target ID',
+				name: 'targetId',
 				type: 'string',
 				default: '',
-				description: 'ID of the targeted file or directory',
+				description:
+					'ID of the targeted file or directory. If the target is a folder and value is left empty , root (io.cozy.files.root-dir) is used',
 				displayOptions: {
 					show: {
-						operation: ['getOneFile', 'deleteFile', 'shareByLink'],
+						operation: ['deleteFile', 'shareByLink', 'listFiles'],
 					},
 				},
 			},
@@ -195,7 +214,8 @@ export class TwakeDriveNode implements INodeType {
 				name: 'useLabels',
 				type: 'boolean',
 				default: false,
-				description: 'Whether to revoke only selected labels. When disabled, the entire share is deleted.',
+				description:
+					'Whether to revoke only selected labels. When disabled, the entire share is deleted.',
 				displayOptions: { show: { operation: ['deleteShare'] } },
 			},
 			{
@@ -404,27 +424,6 @@ export class TwakeDriveNode implements INodeType {
 				},
 			},
 			{
-				displayName: 'Listing Mode',
-				name: 'listMode',
-				type: 'options',
-				default: 'all',
-				options: [
-					{ name: 'All Files', value: 'all' },
-					{ name: 'Folder Contents', value: 'byDirectory' },
-				],
-				displayOptions: { show: { operation: ['listFiles'] } },
-			},
-			{
-				displayName: 'Directory ID',
-				name: 'listDirId',
-				type: 'string',
-				default: '',
-				description: 'ID of the directory to list',
-				displayOptions: {
-					show: { operation: ['listFiles'], listMode: ['byDirectory'] },
-				},
-			},
-			{
 				displayName: 'Directory Name',
 				name: 'dirName',
 				type: 'string',
@@ -553,7 +552,13 @@ export class TwakeDriveNode implements INodeType {
 			instanceUrl: string;
 			apiToken: string;
 		};
-		const credentials = (await this.getCredentials('twakeDriveApi')) as TwakeCredentials;
+		const originalCredentials = (await this.getCredentials('twakeDriveApi')) as TwakeCredentials;
+		const rawInstanceUrl = originalCredentials.instanceUrl || '';
+		const sanitizedInstanceUrl = rawInstanceUrl.replace(/\/+$/, '');
+		const credentials: TwakeCredentials = {
+			...originalCredentials,
+			instanceUrl: sanitizedInstanceUrl,
+		};
 
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			const ezlog = createEzlog(items as INodeExecutionData[], itemIndex);
@@ -563,9 +568,6 @@ export class TwakeDriveNode implements INodeType {
 					//////////////////////
 					// FILES OPERATIONS //
 					//////////////////////
-					case 'getOneFile':
-						await TwakeFilesHelpers.getOneFile.call(this, itemIndex, ezlog, credentials);
-						break;
 					case 'listFiles':
 						await TwakeFilesHelpers.listFiles.call(this, itemIndex, ezlog, credentials);
 						break;
@@ -591,13 +593,7 @@ export class TwakeDriveNode implements INodeType {
 					// DIRECTORIES OPERATIONS //
 					////////////////////////////
 					case 'createFolder':
-						await TwakeDirectoriesHelpers.createFolder.call(
-							this,
-							itemIndex,
-							items,
-							ezlog,
-							credentials,
-						);
+						await TwakeDirectoriesHelpers.createFolder.call(this, itemIndex, ezlog, credentials);
 						break;
 					case 'deleteFolder':
 						await TwakeDirectoriesHelpers.deleteFolder.call(this, itemIndex, ezlog, credentials);
@@ -612,10 +608,10 @@ export class TwakeDriveNode implements INodeType {
 					// SHARING OPERATIONS //
 					////////////////////////
 					case 'shareByLink':
-						await TwakeSharingHelpers.shareByLink.call(this, itemIndex, ezlog, credentials);
+						await TwakeShareHelpers.shareByLink.call(this, itemIndex, ezlog, credentials);
 						break;
 					case 'deleteShare':
-						await TwakeSharingHelpers.deleteShareByLink.call(this, itemIndex, ezlog, credentials);
+						await TwakeShareHelpers.deleteShareByLink.call(this, itemIndex, ezlog, credentials);
 						break;
 				}
 			} catch (error) {
