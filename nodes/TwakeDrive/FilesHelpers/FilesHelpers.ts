@@ -6,9 +6,11 @@ export async function listFiles(
 	ezlog: (name: string, value: any) => void,
 	credentials: { instanceUrl: string; apiToken: string },
 ) {
-	const itemBag: { [key: string]: any } = {};
-	const instanceUrl = credentials.instanceUrl;
+	const itemsOut: INodeExecutionData[] = this.getInputData();
+	const itemBag: Record<string, any> = {};
+	const instanceUrl = credentials.instanceUrl.replace(/\/$/, '');
 	const realToken = credentials.apiToken;
+
 	const targetType = this.getNodeParameter('targetType', itemIndex, 'folder') as 'file' | 'folder';
 	const idParam = this.getNodeParameter('targetId', itemIndex, '') as string;
 	const wantedFilesArray: any[] = [];
@@ -22,19 +24,84 @@ export async function listFiles(
 			});
 		}
 		itemBag.targetId = idParam;
-		const resp = await this.helpers.httpRequest({
+
+		// Metadata
+		const metaResp = await this.helpers.httpRequest({
 			method: 'GET',
 			url: `${instanceUrl}/files/${encodeURIComponent(idParam)}`,
-			headers: {
-				Authorization: `Bearer ${realToken}`,
-				Accept: 'application/vnd.api+json',
-			},
+			headers: { Authorization: `Bearer ${realToken}`, Accept: 'application/vnd.api+json' },
 			json: true,
 		});
-
-		const single = resp?.data ?? resp;
+		const single = (metaResp as any)?.data ?? metaResp;
 		wantedFilesArray.push(single);
 		itemBag.file = wantedFilesArray;
+
+		// Binary
+		const fileId = single?.id || idParam;
+		const fileName = single?.attributes?.name || String(fileId);
+		const mimeType = single?.attributes?.mime || 'application/octet-stream';
+		const downloadUrl = `${instanceUrl}/files/download/${encodeURIComponent(fileId)}`;
+
+		const binResp = await this.helpers.httpRequest({
+			method: 'GET',
+			url: downloadUrl,
+			headers: { Authorization: `Bearer ${realToken}`, Accept: '*/*' },
+			json: false,
+			encoding: 'arraybuffer',
+		});
+		const buf: Buffer = Buffer.isBuffer(binResp)
+			? (binResp as Buffer)
+			: Buffer.from(binResp as ArrayBuffer);
+		const binaryData = await this.helpers.prepareBinaryData(buf, fileName, mimeType);
+
+		// Dynamic property name
+		const inputItem = itemsOut[itemIndex] ?? {};
+		let keySource: 'json' | 'binary' | 'default' = 'default';
+
+		// Priority set to $json.binaryPropertyName
+		let binaryPropertyName =
+			typeof (inputItem?.json as any)?.binaryPropertyName === 'string' &&
+			(inputItem!.json as any).binaryPropertyName.trim()
+				? (inputItem!.json as any).binaryPropertyName.trim()
+				: '';
+
+		// Else if only one binary key, reuse it
+		if (!binaryPropertyName) {
+			const existingKeys = Object.keys(inputItem?.binary ?? {});
+			if (existingKeys.length === 1) {
+				binaryPropertyName = existingKeys[0];
+				keySource = 'binary';
+			}
+		}
+
+		// Fallback
+		if (!binaryPropertyName) {
+			binaryPropertyName = 'data';
+			keySource = 'default';
+		}
+
+		// Avoid overwrite if key already exists
+		const existingKeys = Object.keys(inputItem?.binary ?? {});
+		let finalKey = binaryPropertyName;
+		if (existingKeys.includes(finalKey)) {
+			let c = 2;
+			while (existingKeys.includes(`${finalKey}_${c}`)) c++;
+			finalKey = `${finalKey}_${c}`;
+		}
+
+		itemsOut[itemIndex].binary = {
+			...(itemsOut[itemIndex].binary || {}),
+			[finalKey]: binaryData,
+		};
+
+		itemBag.binary = {
+			filename: fileName,
+			mimeType,
+			size: binaryData.fileSize,
+			downloadUrl,
+			property: finalKey,
+			keySource,
+		};
 		ezlog('listFiles', itemBag);
 
 		return { wantedFilesArray };
@@ -48,7 +115,6 @@ export async function listFiles(
 
 	while (true) {
 		const qs: Record<string, string | number> = {};
-		// limited to 30 (cozy API default), can be increased
 		qs['page[limit]'] = 30;
 		if (cursor) qs['page[cursor]'] = cursor;
 
@@ -56,33 +122,28 @@ export async function listFiles(
 			method: 'GET',
 			url: `${instanceUrl}/files/${encodeURIComponent(listDirId)}`,
 			qs,
-			headers: {
-				Authorization: `Bearer ${realToken}`,
-				Accept: 'application/vnd.api+json',
-			},
+			headers: { Authorization: `Bearer ${realToken}`, Accept: 'application/vnd.api+json' },
 			json: true,
 		});
 
-		const chunk = Array.isArray(resp?.included) ? resp.included : [];
+		const chunk = Array.isArray((resp as any)?.included) ? (resp as any).included : [];
 		if (chunk.length) wantedFilesArray.push(...chunk);
 		if (wantedFilesArray.length >= maxItems) {
-			itemBag.cappedAtMaxItems = {
-				maxItems,
-				current: wantedFilesArray.length,
-			};
+			itemBag.cappedAtMaxItems = { maxItems, current: wantedFilesArray.length };
 			break;
 		}
 
-		const nextPageLink = resp?.links?.next as string | undefined;
+		const nextPageLink = (resp as any)?.links?.next as string | undefined;
 		cursor = nextPageLink
 			? new URL(nextPageLink, instanceUrl).searchParams.get('page[cursor]')
 			: null;
 		if (!cursor) break;
 	}
+
 	itemBag.total = wantedFilesArray.length;
 	itemBag.files = wantedFilesArray;
-
 	ezlog('listFiles', itemBag);
+
 	return { wantedFilesArray };
 }
 
