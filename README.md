@@ -129,10 +129,10 @@ This is a community node. If you encounter issues or have feature requests, feel
 
 ### 1.2.0
 
-- Improve `listFiles` operation.
+- Rename `listFiles` operation to `getFileFolder` and improve it.
   - Remove `listAllFiles` option as it was not revelant
   - Remake the function to use two mode only : `File` and `Folder`. `File` mode will return a single file with it's metadata and it's binary. `Folder` will return the content of the specified folder, no binaries.
-- Remove `getOneFile` operation, as it is now handle by `listFiles`
+- Remove `getOneFile` operation, as it is now handle by `getFileFolder`
 - Sanitize `instanceUrl` input from credential to avoid trailing slashes
 - Only one item return by operation, for UI clarity and usage
 - Little modifications such as renaming some files or actions and descriptions for clearer UI

@@ -52,14 +52,14 @@ export class TwakeDriveNode implements INodeType {
 				name: 'operation',
 				type: 'options',
 				noDataExpression: true,
-				default: 'listFiles',
+				default: 'getFileFolder',
 				displayOptions: { show: { resource: ['fileFolder'] } },
 				options: [
 					{
 						name: 'List Files',
-						value: 'listFiles',
+						value: 'getFileFolder',
 						description: 'List a folder content or fetch a single file depending on Target',
-						action: 'Search files and folders',
+						action: 'Get files/folder',
 					},
 				],
 			},
@@ -73,7 +73,7 @@ export class TwakeDriveNode implements INodeType {
 				],
 				default: 'folder',
 				description: 'Choose whether to list a folder (its contents) or fetch a single file',
-				displayOptions: { show: { resource: ['fileFolder'], operation: ['listFiles'] } },
+				displayOptions: { show: { resource: ['fileFolder'], operation: ['getFileFolder'] } },
 			},
 
 			// Operation — FILE
@@ -192,7 +192,7 @@ export class TwakeDriveNode implements INodeType {
 					'ID of the targeted file or directory. If the target is a folder and value is left empty , root (io.cozy.files.root-dir) is used.',
 				displayOptions: {
 					show: {
-						operation: ['deleteFile', 'shareByLink', 'listFiles'],
+						operation: ['deleteFile', 'shareByLink', 'getFileFolder'],
 					},
 				},
 			},
@@ -568,8 +568,8 @@ export class TwakeDriveNode implements INodeType {
 					//////////////////////
 					// FILES OPERATIONS //
 					//////////////////////
-					case 'listFiles':
-						await TwakeFilesHelpers.listFiles.call(this, itemIndex, ezlog, credentials);
+					case 'getFileFolder':
+						await TwakeFilesHelpers.getFileFolder.call(this, itemIndex, ezlog, credentials);
 						break;
 					case 'uploadFile':
 						await TwakeFilesHelpers.uploadFile.call(this, itemIndex, items, ezlog, credentials);

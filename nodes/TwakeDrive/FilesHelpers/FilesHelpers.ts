@@ -1,6 +1,6 @@
 import { IExecuteFunctions, INodeExecutionData, NodeOperationError } from 'n8n-workflow';
 
-export async function listFiles(
+export async function getFileFolder(
 	this: IExecuteFunctions,
 	itemIndex: number,
 	ezlog: (name: string, value: any) => void,
@@ -102,7 +102,7 @@ export async function listFiles(
 			property: finalKey,
 			keySource,
 		};
-		ezlog('listFiles', itemBag);
+		ezlog('getFile', itemBag);
 
 		return { wantedFilesArray };
 	}
@@ -142,7 +142,7 @@ export async function listFiles(
 
 	itemBag.total = wantedFilesArray.length;
 	itemBag.files = wantedFilesArray;
-	ezlog('listFiles', itemBag);
+	ezlog('getFolder', itemBag);
 
 	return { wantedFilesArray };
 }
