@@ -39,7 +39,7 @@ export class TwakeDriveNode implements INodeType {
 				noDataExpression: true,
 				default: 'file',
 				options: [
-					{ name: 'Files/Folders', value: 'fileFolder' },
+					{ name: 'File/Folder', value: 'fileFolder' },
 					{ name: 'File', value: 'file' },
 					{ name: 'Folder', value: 'folder' },
 					{ name: 'Share', value: 'share' },
@@ -72,7 +72,7 @@ export class TwakeDriveNode implements INodeType {
 					{ name: 'File', value: 'file' },
 				],
 				default: 'folder',
-				description: 'Choose whether to list a folder (its contents) or fetch a single file.',
+				description: 'Choose whether to list a folder (its contents) or fetch a single file',
 				displayOptions: { show: { resource: ['fileFolder'], operation: ['listFiles'] } },
 			},
 
@@ -82,7 +82,7 @@ export class TwakeDriveNode implements INodeType {
 				name: 'operation',
 				type: 'options',
 				noDataExpression: true,
-				default: 'listFiles',
+				default: 'copyFile',
 				displayOptions: { show: { resource: ['file'] } },
 				options: [
 					{
@@ -189,7 +189,7 @@ export class TwakeDriveNode implements INodeType {
 				type: 'string',
 				default: '',
 				description:
-					'ID of the targeted file or directory. If the target is a folder and value is left empty , root (io.cozy.files.root-dir) is used',
+					'ID of the targeted file or directory. If the target is a folder and value is left empty , root (io.cozy.files.root-dir) is used.',
 				displayOptions: {
 					show: {
 						operation: ['deleteFile', 'shareByLink', 'listFiles'],
@@ -229,7 +229,7 @@ export class TwakeDriveNode implements INodeType {
 				default: [],
 				placeholder: 'Leave empty to delete the entire share',
 				description:
-					'Select labels to revoke. If empty (or switch OFF), the entire share is deleted. Choose from the list, or specify IDs using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+					'Select labels to revoke. If empty (or switch OFF), the entire share is deleted. Choose from the list, or specify IDs using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 				displayOptions: { show: { operation: ['deleteShare'], useLabels: [true] } },
 			},
 
