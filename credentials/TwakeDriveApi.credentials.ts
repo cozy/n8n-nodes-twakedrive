@@ -1,15 +1,14 @@
-import {
-	IAuthenticateGeneric,
-	ICredentialTestRequest,
-	ICredentialType,
-	INodeProperties,
-} from 'n8n-workflow';
+import type { ICredentialType, INodeProperties, Icon } from 'n8n-workflow';
 
 export class TwakeDriveApi implements ICredentialType {
 	name = 'twakeDriveApi';
-	displayName = 'Twake Drive API';
+	displayName = 'Twake Drive OAuth2 API';
+	extends = ['oAuth2Api'];
 
-	documentationUrl = 'https://github.com/cozy/cozy-stack/tree/master/docs';
+	icon: Icon = {
+		light: 'file:../nodes/TwakeDrive/icon.svg',
+		dark: 'file:../nodes/TwakeDrive/icon.svg',
+	};
 
 	properties: INodeProperties[] = [
 		{
@@ -17,32 +16,60 @@ export class TwakeDriveApi implements ICredentialType {
 			name: 'instanceUrl',
 			type: 'string',
 			default: '',
+			required: true,
 			placeholder: 'https://yourinstance.mycozy.cloud or https://yourinstance.twake.linagora.com',
-			description: 'Base URL of the Twake instance',
+			hint: 'Base instance URL (without trailing slash). Ex: https://myinstance.mycozy.cloud or https://myinstance.twake.linagora.com',
 		},
 		{
-			displayName: 'API Token',
-			name: 'apiToken',
+			displayName: 'Client ID',
+			name: 'clientId',
 			type: 'string',
 			default: '',
-			typeOptions: {
-				password: true,
-			},
-			description: 'API token for authorization',
+			required: true,
 		},
+		{
+			displayName: 'Client Secret',
+			name: 'clientSecret',
+			type: 'string',
+			typeOptions: { password: true },
+			default: '',
+			required: true,
+		},
+		{
+			displayName: 'Authorization URL',
+			name: 'authUrl',
+			type: 'string',
+			default: '',
+			required: true,
+			placeholder: 'https://myinstance.mycozy.cloud/auth/authorize',
+			hint: 'Format: instance-url + "/auth/authorize". Example → https://myinstance.mycozy.cloud/auth/authorize',
+		},
+		{
+			displayName: 'Access Token URL',
+			name: 'accessTokenUrl',
+			type: 'string',
+			default: '',
+			required: true,
+			placeholder: 'https://myinstance.mycozy.cloud/auth/access_token',
+			hint: 'Format: instance-url + "/auth/access_token". Example → https://myinstance.mycozy.cloud/auth/access_token',
+		},
+		{
+			displayName: 'Auth URI Query Parameters',
+			name: 'authQueryParameters',
+			type: 'hidden',
+			default: '',
+		},
+		{ displayName: 'Grant Type', name: 'grantType', type: 'hidden', default: 'authorizationCode' },
+		{ displayName: 'Scopes', name: 'scope', type: 'hidden', default: 'io.cozy.files' },
+		{ displayName: 'Authentication', name: 'authentication', type: 'hidden', default: 'body' },
 	];
-	authenticate: IAuthenticateGeneric = {
-		type: 'generic',
-		properties: {
-			headers: {
-				Authorization: '=Bearer {{$credentials.apiToken}}',
-			},
-		},
-	};
-	test: ICredentialTestRequest = {
-		request: {
-			baseURL: '={{$credentials.instanceUrl}}',
-			url: '/files/io.cozy.files.root-dir',
-		},
-	};
+
+	oauth2 = {
+		grantType: 'authorizationCode',
+		scope: 'io.cozy.files',
+		tokenRequestMethod: 'POST',
+		authorizeUrl: { url: '={{ $credentials.authUrl }}' },
+		accessTokenUrl: { url: '={{ $credentials.accessTokenUrl }}' },
+		clientAuthentication: 'body',
+	} as const;
 }
