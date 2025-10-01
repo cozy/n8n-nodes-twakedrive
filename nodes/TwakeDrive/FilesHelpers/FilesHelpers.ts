@@ -4,19 +4,15 @@ export async function getFileFolder(
 	this: IExecuteFunctions,
 	itemIndex: number,
 	ezlog: (name: string, value: any) => void,
-	credentials: { instanceUrl: string; apiToken: string },
 ) {
 	const itemsOut: INodeExecutionData[] = this.getInputData();
 	const itemBag: Record<string, any> = {};
-	const instanceUrl = credentials.instanceUrl.replace(/\/$/, '');
-	const realToken = credentials.apiToken;
-
+	const cred = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const instanceUrl = cred.instanceUrl.replace(/\/$/, '');
 	const targetType = this.getNodeParameter('targetType', itemIndex, 'folder') as 'file' | 'folder';
 	const idParam = this.getNodeParameter('targetId', itemIndex, '') as string;
 	const wantedFilesArray: any[] = [];
-
 	itemBag.targetType = targetType;
-
 	if (targetType === 'file') {
 		if (!idParam) {
 			throw new NodeOperationError(this.getNode(), 'File ID is required when Target = "File"', {
@@ -24,48 +20,60 @@ export async function getFileFolder(
 			});
 		}
 		itemBag.targetId = idParam;
-
-		// Metadata
-		const metaResp = await this.helpers.httpRequest({
+		// --- Metadata
+		const metaResp = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
 			method: 'GET',
-			url: `${instanceUrl}/files/${encodeURIComponent(idParam)}`,
-			headers: { Authorization: `Bearer ${realToken}`, Accept: 'application/vnd.api+json' },
+			baseURL: instanceUrl,
+			url: `/files/${encodeURIComponent(idParam)}`,
+			headers: { Accept: 'application/vnd.api+json' },
 			json: true,
-		});
-		const single = (metaResp as any)?.data ?? metaResp;
+		} as any);
+		const metaPayload = (metaResp as any)?.data ?? metaResp;
+		const single = (metaPayload?.data ?? metaPayload) as any;
 		wantedFilesArray.push(single);
 		itemBag.file = wantedFilesArray;
 
-		// Binary
+		// --- Binary
 		const fileId = single?.id || idParam;
 		const fileName = single?.attributes?.name || String(fileId);
 		const mimeType = single?.attributes?.mime || 'application/octet-stream';
 		const downloadUrl = `${instanceUrl}/files/download/${encodeURIComponent(fileId)}`;
-
-		const binResp = await this.helpers.httpRequest({
+		const dl = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
 			method: 'GET',
-			url: downloadUrl,
-			headers: { Authorization: `Bearer ${realToken}`, Accept: '*/*' },
+			baseURL: instanceUrl,
+			url: `/files/download/${encodeURIComponent(fileId)}`,
+			headers: { Accept: '*/*' },
 			json: false,
-			encoding: 'arraybuffer',
-		});
-		const buf: Buffer = Buffer.isBuffer(binResp)
-			? (binResp as Buffer)
-			: Buffer.from(binResp as ArrayBuffer);
+			responseType: 'arraybuffer',
+			encoding: null as any,
+		} as any);
+		const body = dl && typeof dl === 'object' && 'data' in dl ? (dl as any).data : dl;
+		let buf: Buffer;
+		if (Buffer.isBuffer(body)) {
+			buf = body;
+		} else if (body instanceof ArrayBuffer) {
+			buf = Buffer.from(new Uint8Array(body));
+		} else if (ArrayBuffer.isView(body)) {
+			const view = body as ArrayBufferView;
+			buf = Buffer.from(view.buffer, view.byteOffset, view.byteLength);
+		} else if (typeof body === 'string') {
+			buf = Buffer.from(body, 'binary');
+		} else if ((body as any)?.type === 'Buffer' && Array.isArray((body as any)?.data)) {
+			buf = Buffer.from((body as any).data);
+		} else {
+			ezlog('download.unexpected', { kind: typeof body, keys: Object.keys(body || {}) });
+			throw new NodeOperationError(this.getNode(), 'Unexpected binary response type');
+		}
 		const binaryData = await this.helpers.prepareBinaryData(buf, fileName, mimeType);
 
-		// Dynamic property name
+		// --- Dynamic property name
 		const inputItem = itemsOut[itemIndex] ?? {};
 		let keySource: 'json' | 'binary' | 'default' = 'default';
-
-		// Priority set to $json.binaryPropertyName
 		let binaryPropertyName =
 			typeof (inputItem?.json as any)?.binaryPropertyName === 'string' &&
 			(inputItem!.json as any).binaryPropertyName.trim()
 				? (inputItem!.json as any).binaryPropertyName.trim()
 				: '';
-
-		// Else if only one binary key, reuse it
 		if (!binaryPropertyName) {
 			const existingKeys = Object.keys(inputItem?.binary ?? {});
 			if (existingKeys.length === 1) {
@@ -73,14 +81,10 @@ export async function getFileFolder(
 				keySource = 'binary';
 			}
 		}
-
-		// Fallback
 		if (!binaryPropertyName) {
 			binaryPropertyName = 'data';
 			keySource = 'default';
 		}
-
-		// Avoid overwrite if key already exists
 		const existingKeys = Object.keys(inputItem?.binary ?? {});
 		let finalKey = binaryPropertyName;
 		if (existingKeys.includes(finalKey)) {
@@ -88,12 +92,10 @@ export async function getFileFolder(
 			while (existingKeys.includes(`${finalKey}_${c}`)) c++;
 			finalKey = `${finalKey}_${c}`;
 		}
-
 		itemsOut[itemIndex].binary = {
 			...(itemsOut[itemIndex].binary || {}),
 			[finalKey]: binaryData,
 		};
-
 		itemBag.binary = {
 			filename: fileName,
 			mimeType,
@@ -103,28 +105,27 @@ export async function getFileFolder(
 			keySource,
 		};
 		ezlog('getFile', itemBag);
-
 		return { wantedFilesArray };
 	}
 
-	// targetType === 'folder'
+	// --- targetType === 'folder'
 	const listDirId = idParam || 'io.cozy.files.root-dir';
 	itemBag.targetId = listDirId;
 	const maxItems = 2000;
 	let cursor: string | null = null;
 
 	while (true) {
-		const qs: Record<string, string | number> = {};
-		qs['page[limit]'] = 30;
+		const qs: Record<string, string | number> = { 'page[limit]': 30 };
 		if (cursor) qs['page[cursor]'] = cursor;
 
-		const resp = await this.helpers.httpRequest({
+		const resp = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
 			method: 'GET',
-			url: `${instanceUrl}/files/${encodeURIComponent(listDirId)}`,
+			baseURL: instanceUrl,
+			url: `/files/${encodeURIComponent(listDirId)}`,
 			qs,
-			headers: { Authorization: `Bearer ${realToken}`, Accept: 'application/vnd.api+json' },
+			headers: { Accept: 'application/vnd.api+json' },
 			json: true,
-		});
+		} as any);
 
 		const chunk = Array.isArray((resp as any)?.included) ? (resp as any).included : [];
 		if (chunk.length) wantedFilesArray.push(...chunk);
