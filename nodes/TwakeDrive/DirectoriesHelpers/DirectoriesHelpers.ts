@@ -66,35 +66,44 @@ export async function deleteFolder(
 	this: IExecuteFunctions,
 	itemIndex: number,
 	ezlog: (name: string, value: any) => void,
-	credentials: { instanceUrl: string; apiToken: string },
 ) {
-	const itemBag: { [key: string]: any } = {};
-	const instanceUrl = credentials.instanceUrl;
-	const realToken = credentials.apiToken;
+	const itemBag: Record<string, any> = {};
+
+	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
 	if (!dirId) {
 		throw new NodeOperationError(this.getNode(), 'Directory ID is required', { itemIndex });
 	}
 
-	const url = `${instanceUrl}/files/${encodeURIComponent(dirId)}`;
+	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+		method: 'DELETE',
+		url: `${baseUrl}/files/${encodeURIComponent(dirId)}`,
+		headers: {
+			Accept: 'application/vnd.api+json',
+			'Content-Type': 'application/json',
+		},
+		json: true,
+	});
 
-	try {
-		await this.helpers.httpRequest({
-			method: 'DELETE',
-			url,
-			headers: {
-				Authorization: `Bearer ${realToken}`,
-				Accept: 'application/vnd.api+json',
-			},
-			json: true,
-		});
-		itemBag.deletedFolderId = dirId;
-		ezlog('deleteFolder', itemBag);
-		return { deletedFolderId: dirId };
-	} catch (error: any) {
-		throw new NodeOperationError(this.getNode(), error, { itemIndex });
-	}
+	const res =
+		typeof resRaw === 'string'
+			? resRaw.trim().length
+				? JSON.parse(resRaw)
+				: null
+			: (resRaw ?? null);
+
+	itemBag.deletedFolderId = dirId;
+	itemBag.response = res;
+	ezlog('deleteFolder', itemBag);
+
+	return {
+		deleteFolder: {
+			deletedFolderId: dirId,
+			response: res,
+		},
+	};
 }
 
 export async function moveFolder(
