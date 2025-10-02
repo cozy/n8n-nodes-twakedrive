@@ -460,69 +460,93 @@ export async function updateFile(
 	itemIndex: number,
 	items: INodeExecutionData[],
 	ezlog: (name: string, value: any) => void,
-	credentials: { instanceUrl: string; apiToken: string },
 ) {
-	const itemBag: { [key: string]: any } = {};
-	const instanceUrl = credentials.instanceUrl;
+	const itemBag: Record<string, any> = {};
+
+	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const baseUrl = instanceUrl.replace(/\/+$/, '');
+
 	const fileId = this.getNodeParameter('fileId', itemIndex, '') as string;
-	itemBag.fileId = fileId;
-	const fileUrl = `${instanceUrl}/files/${fileId}`;
-	const binPropName = this.getNodeParameter('binaryPropertyName', itemIndex, 'data');
+	const binPropName =
+		(this.getNodeParameter('binaryPropertyName', itemIndex, 'data') as string) || 'data';
 	const binaryData = items[itemIndex].binary?.[binPropName];
-	const realToken = credentials.apiToken;
 
 	if (!binaryData) {
-		throw new NodeOperationError(this.getNode(), 'UpdateFile - Binary data not found', {
-			itemIndex,
-		});
+		throw new NodeOperationError(
+			this.getNode(),
+			`UpdateFile - Binary data not found in "${binPropName}"`,
+			{ itemIndex },
+		);
 	}
+
 	const wantsCustomName = this.getNodeParameter('customName', itemIndex) as boolean;
 	const newName = wantsCustomName
 		? (this.getNodeParameter('newName', itemIndex) as string)
 		: undefined;
-	const fileData = binaryData.data;
-	const mimeType = binaryData.mimeType;
-	const fileBuffer = Buffer.from(fileData, 'base64');
 
-	// Change file content
-	const updatedFileResponse = await this.helpers.httpRequest({
-		method: 'PUT',
-		url: fileUrl,
-		headers: {
-			Authorization: `Bearer ${realToken}`,
-			Accept: 'application/vnd.api+json',
-			'Content-Type': mimeType,
-		},
-		body: fileBuffer,
-	});
+	const fileBuffer = Buffer.from(binaryData.data, 'base64');
+	const mimeType = binaryData.mimeType || 'application/octet-stream';
 
-	// Change filename if asked
-	if (newName) {
-		itemBag.newFilename = newName;
-		const changedFilenameResponse = await this.helpers.httpRequest({
-			method: 'PATCH',
-			url: fileUrl,
+	itemBag.fileId = fileId;
+	itemBag.binaryPropertyName = binPropName;
+	itemBag.byteLength = fileBuffer.byteLength;
+
+	// Update content
+	const updatedFileResponseRaw = await this.helpers.requestWithAuthentication.call(
+		this,
+		'twakeDriveApi',
+		{
+			method: 'PUT',
+			url: `${baseUrl}/files/${encodeURIComponent(fileId)}`,
 			headers: {
-				Authorization: `Bearer ${realToken}`,
 				Accept: 'application/vnd.api+json',
 				'Content-Type': mimeType,
+			},
+			body: fileBuffer,
+			json: true,
+		},
+	);
+
+	const updatedFileResponse =
+		typeof updatedFileResponseRaw === 'string'
+			? JSON.parse(updatedFileResponseRaw)
+			: updatedFileResponseRaw;
+
+	itemBag.updatedFile = updatedFileResponse;
+
+	// Rename
+	let changedFilenameResponse: any = null;
+	if (newName) {
+		itemBag.newFilename = newName;
+
+		const renameRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+			method: 'PATCH',
+			url: `${baseUrl}/files/${encodeURIComponent(fileId)}`,
+			headers: {
+				Accept: 'application/vnd.api+json',
+				'Content-Type': 'application/vnd.api+json',
 			},
 			body: {
 				data: {
 					type: 'io.cozy.files',
 					id: fileId,
-					attributes: {
-						name: newName,
-					},
+					attributes: { name: newName },
 				},
 			},
 			json: true,
 		});
-		itemBag.updatedFile = changedFilenameResponse;
-		ezlog('updateFile', itemBag);
-		return { changedFilenameResponse };
+
+		changedFilenameResponse = typeof renameRaw === 'string' ? JSON.parse(renameRaw) : renameRaw;
+		itemBag.rename = changedFilenameResponse;
 	}
-	itemBag.updatedFile = updatedFileResponse;
+
 	ezlog('updateFile', itemBag);
-	return { updatedFileResponse };
+
+	return {
+		updateFile: {
+			fileId,
+			contentUpdate: updatedFileResponse,
+			nameUpdate: changedFilenameResponse,
+		},
+	};
 }
