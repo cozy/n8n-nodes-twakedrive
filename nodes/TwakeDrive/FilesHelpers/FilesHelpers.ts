@@ -311,26 +311,38 @@ export async function deleteFile(
 	this: IExecuteFunctions,
 	itemIndex: number,
 	ezlog: (name: string, value: any) => void,
-	credentials: { instanceUrl: string; apiToken: string },
 ) {
-	const itemBag: { [key: string]: any } = {};
-	const instanceUrl = credentials.instanceUrl;
+	const itemBag: Record<string, any> = {};
+
+	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const baseUrl = instanceUrl.replace(/\/+$/, '');
+
 	const fileId = this.getNodeParameter('targetId', itemIndex, '') as string;
-	const fileUrl = `${instanceUrl}/files/${fileId}`;
-	const realToken = credentials.apiToken;
-	const deletedFileResponse = await this.helpers.httpRequest({
-		method: 'DELETE',
-		url: fileUrl,
-		headers: {
-			Authorization: `Bearer ${realToken}`,
-			Accept: 'application/vnd.api+json',
+
+	const deletedFileResponse = await this.helpers.requestWithAuthentication.call(
+		this,
+		'twakeDriveApi',
+		{
+			method: 'DELETE',
+			url: `${baseUrl}/files/${encodeURIComponent(fileId)}`,
+			headers: {
+				Accept: 'application/vnd.api+json',
+				'Content-Type': 'application/json',
+			},
+			json: true,
 		},
-		json: true,
-	});
-	itemBag.deletedFileId = deletedFileResponse.data?.id;
+	);
+
+	itemBag.deletedFileId = deletedFileResponse?.data?.id ?? deletedFileResponse?.id ?? fileId;
 	itemBag.deletedFile = deletedFileResponse;
 	ezlog('deleteFile', itemBag);
-	return { deletedFileResponse };
+
+	return {
+		deleteFile: {
+			deletedFileId: itemBag.deletedFileId,
+			deletedFile: deletedFileResponse,
+		},
+	};
 }
 
 export async function createFileFromText(
