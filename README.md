@@ -35,11 +35,13 @@ List of all available operations in this node.
   - List all files in the specified folder
   - Get a single file with it's binary (download is now possible)
 - Upload files
+  - Possibility to overwrite an already existing file
 - Copy files
 - Create file from text
 - Delete files
 - Update files
 - Move files
+- Rename files
 
 ### Folders operations
 
@@ -60,63 +62,60 @@ _Different improvements (like dynamic lists when relevant on files and folders o
 
 ## Credentials
 
-This node uses a custom credential type to connect to your Twake instance via the Cozy Stack. You’ll need :
-
-- A Twake instance installed locally
-- An app token generated from your local stack
+This node uses an OAuth 2.0 authentication.
 
 > **Note:**
-> Currently, token generation is only possible via a locally installed Cozy Stack using this script :
+> For now, client creation is only possible via a cURL or HTTP request. See the tutorial below.
 
-```bash
-#!/bin/bash
+In both cases, the first step is to create a new credential in your n8n app. Select `Twake Drive OAuth2 API` in the list.
+You must do this first, because you’ll need the `OAuth Redirect URL` shown in the credential setup window.
 
-# === Config ===
-INSTANCE_URL="YOUR_INSTANCE_URL" # https://yourinstance.mycozy.cloud or https://yourinstance.twake.linagora.com
-INSTANCE_NAME="YOUR_INSTANCE_NAME" # yourinstance.mycozy.cloud or yourinstance.twake.linagora.com
-APP_NAME="n8n" # mandatory to register the client
-REDIRECT_URI="http://localhost/blank" # required to register the client
-SCOPES=(io.cozy.files) # full R/W on files
-EXPIRE="" # optionnal: ex "30d" or "1h" for --expire
-
-# === 1) Register OAuth client (return client_id) ===
-CLIENT_JSON=$(cozy-stack instances client-oauth "$INSTANCE_NAME" "$REDIRECT_URI" "$APP_NAME" "$APP_NAME" --json 2>/dev/null || true)
-if [ -n "${CLIENT_JSON}" ] && [ "${CLIENT_JSON}" != "null" ]; then
-  CLIENT_ID=$(echo "$CLIENT_JSON" | jq -r '.client_id')
-else
-  # if already register : find it by software_id = APP_NAME
-  CLIENT_ID=$(cozy-stack instances find-oauth-client "$INSTANCE_NAME" "$APP_NAME" 2>/dev/null | awk '/client_id/ {print $2}')
-fi
-
-if [ -z "${CLIENT_ID:-}" ] || [ "$CLIENT_ID" = "null" ]; then
-  echo "❌ Impossible de récupérer client_id (enregistrement client OAuth)."
-  exit 1
-fi
-
-# === 2) Generate app-token ===
-if [ -n "$EXPIRE" ]; then
-  ACCESS_TOKEN=$(cozy-stack instances token-oauth "$INSTANCE_NAME" "$CLIENT_ID" "${SCOPES[@]}" --expire "$EXPIRE")
-else
-  ACCESS_TOKEN=$(cozy-stack instances token-oauth "$INSTANCE_NAME" "$CLIENT_ID" "${SCOPES[@]}")
-fi
-
-if [ -z "${ACCESS_TOKEN:-}" ]; then
-  echo "❌ Impossible de générer l'access token OAuth."
-  exit 1
-fi
-
-echo "$ACCESS_TOKEN"
+```curl
+curl -X POST "https://<INSTANCE_URL>/auth/register" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  --data-raw '{
+    "redirect_uris": ["<N8N_REDIRECT_URL>"],
+    "client_name": "n8n Twake Drive",
+    "software_id": "github.com/cozy/n8n-nodes-twakedrive",
+    "client_kind": "web"
+  }'
 ```
 
-This will generate the token you will need to copy into the node's credentials along your instanceURL to execute your workflow.
+#### CURL method
 
-_Token generation via your Twake Drive instance's settings is planned in future versions._
+- Replace `INSTANCE_URL` with your instance domain (e.g `https://example.mycozy.cloud` or `https://example.twake.linagora.com`)
+- Replace `N8N_REDIRECT_URL` with the `OAuth Redirect URL` you copied from the credentials setup window
+- Send the modified cURL request in your terminal
+- Copy both the `client_id` and the `client_secret` from the response
+- Paste those values into the appropriate fields in the credentials setup window
+- Fill the remaining fields as shown in the examples under each field
+- Connect to your instance
+
+#### N8N node method
+
+Doing it all in n8n is possible. Follow these steps:
+
+- Replace `INSTANCE_URL` by your instance domain (e.g `https://example.mycozy.cloud` or `https://example.twake.linagora.com`)
+- Replace `N8N_REDIRECT_URL` with the `OAuth Redirect URL` you copied from the credentials setup window
+- Create a new workflow and add an `HTTP Request` node from n8n node search panel.
+- Click Import cURL (currently located in the upper-right of the node panel).
+- Paste the modified cURL request
+- Execute the node
+- Copy both the `client_id` and the `client_secret` from the response
+- Paste those values into the appropriate fields in the credentials setup window
+- Fill the remaining fields as shown in the examples under each field
+- Connect to your instance
+
+Ta-da 🎉, you are now connected via OAuth2.
+
+_Client registration via the instance's settings is planned for future updates_
 
 ## Compatibility
 
 Tested with:
 
-- Cozy Stack v1.6.39
+- Cozy Stack v1.6.39+
 - n8n v1.0+
 
 ## Resources
@@ -127,12 +126,27 @@ This is a community node. If you encounter issues or have feature requests, feel
 
 ## Version history
 
+### 1.3.0
+
+#### 🚨 Breaking changes
+
+- Finally getting the actual OAuth2 authentication for the node
+
+You will no longer be able to run your workflow from v1.2.0 and under, authentication method has changed, all operation have been rebuilt accordingly
+
+- Use `requestWithAuthentication` for all operations and load-options
+- Standardize outputs: each operation returns a single top-level object named after the operation
+- Add Rename File operation
+- Files, Folder and Share operations: refactor, more robust JSON parsing and binary handling; clearer errors
+- Load-options: permissions list fetched via authenticated requests with
+- Add overwrite possibility in uploadFile if file with same name already exists
+
 ### 1.2.0
 
-- Improve `listFiles` operation.
+- Rename `listFiles` operation to `getFileFolder` and improve it
   - Remove `listAllFiles` option as it was not revelant
-  - Remake the function to use two mode only : `File` and `Folder`. `File` mode will return a single file with it's metadata and it's binary. `Folder` will return the content of the specified folder, no binaries.
-- Remove `getOneFile` operation, as it is now handle by `listFiles`
+  - Remake the function to use two mode only : `File` and `Folder`. `File` mode will return a single file with it's metadata and it's binary. `Folder` will return the content of the specified folder, no binaries
+- Remove `getOneFile` operation, as it is now handle by `getFileFolder`
 - Sanitize `instanceUrl` input from credential to avoid trailing slashes
 - Only one item return by operation, for UI clarity and usage
 - Little modifications such as renaming some files or actions and descriptions for clearer UI
@@ -143,7 +157,7 @@ This is a community node. If you encounter issues or have feature requests, feel
 
 ### 1.1.0
 
-- Using OAuth to get an app token instead of an admin token
+- Using manual OAuth to get an app token instead of an admin token
 - Folders operations (as listed above)
 - Shares operations (as listed above)
 - Add "byDirectory" option on `listFiles` operation
