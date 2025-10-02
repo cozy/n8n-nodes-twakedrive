@@ -405,36 +405,54 @@ export async function moveFile(
 	this: IExecuteFunctions,
 	itemIndex: number,
 	ezlog: (name: string, value: any) => void,
-	credentials: { instanceUrl: string; apiToken: string },
 ) {
-	const itemBag: { [key: string]: any } = {};
-	const instanceUrl = credentials.instanceUrl;
-	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
-	itemBag.destinationDirId = dirId || 'io.cozy.files.root-dir';
-	const fileId = this.getNodeParameter('fileId', itemIndex, '') as string;
-	const fileUrl = `${instanceUrl}/files/${fileId}`;
-	const realToken = credentials.apiToken;
+	const itemBag: Record<string, any> = {};
 
-	const movedFileResponse = await this.helpers.httpRequest({
-		method: 'PATCH',
-		url: fileUrl,
-		headers: {
-			Authorization: `Bearer ${realToken}`,
-			Accept: 'application/vnd.api+json',
-			'Content-Type': 'application/vnd.api+json',
-		},
-		body: JSON.stringify({
-			data: {
-				attributes: {
-					dir_id: dirId,
+	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const baseUrl = instanceUrl.replace(/\/+$/, '');
+
+	const dirIdParam =
+		(this.getNodeParameter('dirId', itemIndex, '') as string) || 'io.cozy.files.root-dir';
+	const fileId = this.getNodeParameter('fileId', itemIndex, '') as string;
+
+	const movedFileResponseRaw = await this.helpers.requestWithAuthentication.call(
+		this,
+		'twakeDriveApi',
+		{
+			method: 'PATCH',
+			url: `${baseUrl}/files/${encodeURIComponent(fileId)}`,
+			headers: {
+				Accept: 'application/vnd.api+json',
+				'Content-Type': 'application/vnd.api+json',
+			},
+			body: {
+				data: {
+					attributes: {
+						dir_id: dirIdParam,
+					},
 				},
 			},
-		}),
-	});
-	itemBag.movedFileId = movedFileResponse.data?.id;
+			json: true,
+		},
+	);
+
+	const movedFileResponse =
+		typeof movedFileResponseRaw === 'string'
+			? JSON.parse(movedFileResponseRaw)
+			: movedFileResponseRaw;
+
+	itemBag.destinationDirId = dirIdParam;
+	itemBag.movedFileId = movedFileResponse?.data?.id ?? movedFileResponse?.id ?? fileId;
 	itemBag.movedFile = movedFileResponse;
 	ezlog('moveFile', itemBag);
-	return { movedFileResponse };
+
+	return {
+		moveFile: {
+			fileId,
+			dirId: dirIdParam,
+			file: movedFileResponse,
+		},
+	};
 }
 
 export async function updateFile(
