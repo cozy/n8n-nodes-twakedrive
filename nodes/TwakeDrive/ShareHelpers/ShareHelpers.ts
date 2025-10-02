@@ -126,14 +126,18 @@ export async function deleteShareByLink(
 	this: IExecuteFunctions,
 	itemIndex: number,
 	ezlog: (name: string, value: any) => void,
-	credentials: { instanceUrl: string; apiToken: string },
 ) {
-	const itemBag: { [key: string]: any } = {};
-	const { instanceUrl, apiToken } = credentials;
+	const itemBag: Record<string, any> = {};
+
+	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const baseUrl = instanceUrl.replace(/\/+$/, '');
+
+	// permissionsId vient du dropdown (payload JSON stringifié)
 	const rawPerm = this.getNodeParameter('permissionsId', itemIndex, '') as string;
 	if (!rawPerm) {
 		throw new NodeOperationError(this.getNode(), 'Permissions ID is required', { itemIndex });
 	}
+
 	let parsed: any;
 	try {
 		parsed = JSON.parse(rawPerm);
@@ -144,59 +148,83 @@ export async function deleteShareByLink(
 			{ itemIndex },
 		);
 	}
+
 	const permissionsId = String(parsed.id || '');
 	const codesMap = (parsed.codes ?? {}) as Record<string, string>;
 	const shortsMap = (parsed.shortcodes ?? {}) as Record<string, string>;
+
 	const useLabels = this.getNodeParameter('useLabels', itemIndex, false) as boolean;
 	const labels = this.getNodeParameter('labelsToRevoke', itemIndex, []) as string[] | string;
 	const labelsToRevoke = (Array.isArray(labels) ? labels : [labels])
 		.map((rawLabel) => String(rawLabel).trim())
 		.filter(Boolean);
 
-	// Full permission deletion (labels OFF or no label specified)
+	// Suppression totale si OFF ou aucune étiquette fournie
 	if (!useLabels || labelsToRevoke.length === 0) {
 		itemBag.fullPermissionDeletion = true;
 		itemBag.deletionType = !useLabels ? 'toggle_off' : 'no_labels';
-		await this.helpers.httpRequest({
+
+		const delRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
 			method: 'DELETE',
-			url: `${instanceUrl}/permissions/${encodeURIComponent(permissionsId)}`,
-			headers: { Authorization: `Bearer ${apiToken}`, Accept: 'application/vnd.api+json' },
+			url: `${baseUrl}/permissions/${encodeURIComponent(permissionsId)}`,
+			headers: {
+				Accept: 'application/vnd.api+json',
+				'Content-Type': 'application/json',
+			},
 			json: true,
 		});
+
+		const delRes =
+			typeof delRaw === 'string'
+				? delRaw.trim().length
+					? JSON.parse(delRaw)
+					: null
+				: (delRaw ?? null);
+
 		itemBag.deletedPermissionId = permissionsId;
+		itemBag.response = delRes;
 		ezlog('deleteShareByLink', itemBag);
-		return { permissionsId, removed: 'ALL', remaining: [], status: 'deleted' };
+
+		return {
+			deleteShare: {
+				permissionsId,
+				removed: 'ALL',
+				remaining: [],
+				status: 'deleted',
+				response: delRes, // null attendu en 204
+			},
+		};
 	}
 
-	// codes|shortcodes|solo string support
+	// Support "codes:label", "shortcodes:label" ou "label" simple
 	type Target = { kind: 'codes' | 'shortcodes' | 'any'; label: string };
 	const wantedLabels: Target[] = labelsToRevoke.map((val) => {
-		const prefixLabelMatch = val.match(/^([a-zA-Z]+)\s*:\s*(.+)$/);
-		if (prefixLabelMatch) {
-			const kind = prefixLabelMatch[1].toLowerCase();
-			const label = prefixLabelMatch[2].trim();
+		const m = val.match(/^([a-zA-Z]+)\s*:\s*(.+)$/);
+		if (m) {
+			const kind = m[1].toLowerCase();
+			const label = m[2].trim();
 			if (kind === 'codes' || kind === 'code') return { kind: 'codes', label };
 			if (kind === 'shortcodes' || kind === 'short' || kind === 'shortcode')
 				return { kind: 'shortcodes', label };
 		}
 		return { kind: 'any', label: val };
 	});
+
 	const remainingCodes = { ...codesMap };
 	const remainingShorts = { ...shortsMap };
-	for (const wantedLabel of wantedLabels) {
-		if (wantedLabel.kind === 'codes' || wantedLabel.kind === 'any')
-			delete remainingCodes[wantedLabel.label];
-		if (wantedLabel.kind === 'shortcodes' || wantedLabel.kind === 'any')
-			delete remainingShorts[wantedLabel.label];
+	for (const t of wantedLabels) {
+		if (t.kind === 'codes' || t.kind === 'any') delete remainingCodes[t.label];
+		if (t.kind === 'shortcodes' || t.kind === 'any') delete remainingShorts[t.label];
 	}
+
 	const remaining = Array.from(
 		new Set([...Object.keys(remainingCodes), ...Object.keys(remainingShorts)]),
 	).sort();
-	const removed = Array.from(
-		new Set(wantedLabels.map((revocationTarget) => revocationTarget.label)),
-	)
-		.filter((requestedLabel) => !remaining.includes(requestedLabel))
+
+	const removed = Array.from(new Set(wantedLabels.map((t) => t.label)))
+		.filter((requested) => !remaining.includes(requested))
 		.sort();
+
 	if (removed.length === 0) {
 		throw new NodeOperationError(
 			this.getNode(),
@@ -205,12 +233,10 @@ export async function deleteShareByLink(
 		);
 	}
 
-	// Permission deletion for specified label(s)
-	await this.helpers.httpRequest({
+	const patchRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
 		method: 'PATCH',
-		url: `${instanceUrl}/permissions/${encodeURIComponent(permissionsId)}`,
+		url: `${baseUrl}/permissions/${encodeURIComponent(permissionsId)}`,
 		headers: {
-			Authorization: `Bearer ${apiToken}`,
 			Accept: 'application/vnd.api+json',
 			'Content-Type': 'application/vnd.api+json',
 		},
@@ -226,11 +252,24 @@ export async function deleteShareByLink(
 		},
 		json: true,
 	});
+
+	const patchRes = typeof patchRaw === 'string' ? JSON.parse(patchRaw) : patchRaw;
+
 	itemBag.fullPermissionDeletion = false;
 	itemBag.deletionType = 'by_label';
 	itemBag.permissionId = permissionsId;
 	itemBag.revokedLabels = labelsToRevoke;
 	itemBag.remainingLabels = remaining;
-	ezlog('deleteByShareLink', itemBag);
-	return { permissionsId, removed, remaining, status: 'patched' };
+	itemBag.response = patchRes;
+	ezlog('deleteShareByLink', itemBag);
+
+	return {
+		deleteShare: {
+			permissionsId,
+			removed,
+			remaining,
+			status: 'patched',
+			response: patchRes, // untouched & parsé si besoin
+		},
+	};
 }
