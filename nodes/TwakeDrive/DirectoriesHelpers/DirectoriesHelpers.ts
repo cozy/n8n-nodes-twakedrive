@@ -166,39 +166,51 @@ export async function renameFolder(
 	this: IExecuteFunctions,
 	itemIndex: number,
 	ezlog: (name: string, value: any) => void,
-	credentials: { instanceUrl: string; apiToken: string },
 ) {
-	const itemBag: { [key: string]: any } = {};
-	const instanceUrl = credentials.instanceUrl;
-	const realToken = credentials.apiToken;
+	const itemBag: Record<string, any> = {};
+
+	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const baseUrl = instanceUrl.replace(/\/+$/, '');
+
 	const folderId = this.getNodeParameter('folderId', itemIndex, '') as string;
 	const newFolderName = this.getNodeParameter('newFolderName', itemIndex, '') as string;
+
 	if (!folderId) {
 		throw new NodeOperationError(this.getNode(), 'Folder ID is required', { itemIndex });
 	}
-	if (!newFolderName) {
+	if (!newFolderName?.trim()) {
 		throw new NodeOperationError(this.getNode(), 'New Folder Name is required', { itemIndex });
 	}
-	const url = `${instanceUrl}/files/${encodeURIComponent(folderId)}`;
-	const renameResponse = await this.helpers.httpRequest({
+
+	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
 		method: 'PATCH',
-		url,
+		url: `${baseUrl}/files/${encodeURIComponent(folderId)}`,
 		headers: {
-			Authorization: `Bearer ${realToken}`,
 			Accept: 'application/vnd.api+json',
 			'Content-Type': 'application/vnd.api+json',
 		},
-		body: JSON.stringify({
+		body: {
 			data: {
 				type: 'io.cozy.files',
 				id: folderId,
 				attributes: { name: newFolderName },
 			},
-		}),
+		},
 		json: true,
 	});
+
+	const res = typeof resRaw === 'string' ? JSON.parse(resRaw) : resRaw;
+
 	itemBag.renamedFolderId = folderId;
 	itemBag.renamedFolderNewName = newFolderName;
+	itemBag.folder = res;
 	ezlog('renameFolder', itemBag);
-	return { renameResponse };
+
+	return {
+		renameFolder: {
+			folderId,
+			newName: newFolderName,
+			folder: res,
+		},
+	};
 }
