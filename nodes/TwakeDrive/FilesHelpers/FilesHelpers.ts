@@ -155,29 +155,24 @@ export async function uploadFile(
 	ezlog: (name: string, value: any) => void,
 ) {
 	const logBag: Record<string, any> = {};
-
 	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
-
 	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
-	const binPropName = this.getNodeParameter('binaryPropertyName', itemIndex, '') as string;
+	const binPropName = (this.getNodeParameter('binaryPropertyName', itemIndex, '') as string).trim();
+	const overwriteIfExists = this.getNodeParameter('overwriteIfExists', itemIndex, false) as boolean;
 	const targetDirId = dirId || 'io.cozy.files.root-dir';
-
 	const binaries = items[itemIndex].binary || {};
 	const keys = Object.keys(binaries);
 
 	logBag.dirId = targetDirId;
 
 	let chosenKey: string | undefined;
-	if (binPropName && binaries[binPropName]) {
-		chosenKey = binPropName;
-	} else if (!binPropName && keys.length === 1) {
-		chosenKey = keys[0];
-	} else {
+	if (binPropName && binaries[binPropName]) chosenKey = binPropName;
+	else if (!binPropName && keys.length === 1) chosenKey = keys[0];
+	else {
 		throw new NodeOperationError(
 			this.getNode(),
-			`UploadFile - Ambiguous binary selection. Present keys: ${keys.join(', ')}. ` +
-				`Set "binaryPropertyName" to one of these.`,
+			`UploadFile - Ambiguous binary selection. Present keys: ${keys.join(', ')}. Set "binaryPropertyName".`,
 			{ itemIndex },
 		);
 	}
@@ -189,25 +184,64 @@ export async function uploadFile(
 		});
 	}
 
-	const url = `${baseUrl}/files/${targetDirId}`;
 	const fileName = bin.fileName as string;
 	const mimeType = (bin.mimeType as string) || 'application/octet-stream';
 	const fileBuffer = Buffer.from(bin.data as string, 'base64');
 
 	logBag.binaryPropertyName = chosenKey;
 	logBag.fileName = fileName;
-	const response = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
-		method: 'POST',
-		url,
-		headers: {
-			Accept: 'application/vnd.api+json',
-			'Content-Type': mimeType,
-		},
-		qs: { Name: fileName, Type: 'file' },
-		body: fileBuffer,
-		json: true,
-		timeout: 30000,
-	});
+
+	let existingFileId: string | undefined;
+	if (overwriteIfExists) {
+		const findBody = {
+			selector: {
+				dir_id: targetDirId,
+				name: fileName,
+				type: 'file',
+				trashed: false,
+			},
+			limit: 1,
+		};
+		const findResp = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+			method: 'POST',
+			url: `${baseUrl}/files/_find`,
+			body: findBody,
+			json: true,
+		});
+		const arr = Array.isArray(findResp?.data) ? findResp.data : [];
+		existingFileId = arr[0]?.id;
+	}
+
+	let response: any;
+
+	if (existingFileId) {
+		response = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+			method: 'PUT',
+			url: `${baseUrl}/files/${existingFileId}`,
+			headers: {
+				Accept: 'application/vnd.api+json',
+				'Content-Type': mimeType,
+			},
+			body: fileBuffer,
+			json: true,
+			timeout: 30000,
+		});
+		logBag.overwrite = { used: true, existingFileId };
+	} else {
+		response = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+			method: 'POST',
+			url: `${baseUrl}/files/${targetDirId}`,
+			headers: {
+				Accept: 'application/vnd.api+json',
+				'Content-Type': mimeType,
+			},
+			qs: { Name: fileName, Type: 'file' },
+			body: fileBuffer,
+			json: true,
+			timeout: 30000,
+		});
+		logBag.overwrite = { used: false };
+	}
 
 	logBag.fileId = response?.data?.id ?? response?.id;
 	logBag.file = response;

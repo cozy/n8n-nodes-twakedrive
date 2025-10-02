@@ -371,6 +371,20 @@ export class TwakeDriveNode implements INodeType {
 				},
 			},
 			{
+				displayName: 'Overwrite if exists',
+				name: 'overwriteIfExists',
+				type: 'boolean',
+				default: false,
+				description:
+					'If enabled, overwrite a file with the same name in the destination directory.',
+				displayOptions: {
+					show: {
+						operation: ['uploadFile'],
+					},
+				},
+			},
+
+			{
 				displayName: 'Name of the New File',
 				name: 'customName',
 				type: 'boolean',
