@@ -104,6 +104,9 @@ export async function getFileFolder(
 			property: finalKey,
 			keySource,
 		};
+		itemsOut[itemIndex].json = itemsOut[itemIndex].json || {};
+		(itemsOut[itemIndex].json as any).getFile = itemBag;
+
 		ezlog('getFile', itemBag);
 		return { wantedFilesArray };
 	}
@@ -143,6 +146,12 @@ export async function getFileFolder(
 
 	itemBag.total = wantedFilesArray.length;
 	itemBag.files = wantedFilesArray;
+	itemsOut[itemIndex].json = itemsOut[itemIndex].json || {};
+	(itemsOut[itemIndex].json as any).getFolder = {
+		dirId: listDirId,
+		total: wantedFilesArray.length,
+	};
+
 	ezlog('getFolder', itemBag);
 
 	return { wantedFilesArray };

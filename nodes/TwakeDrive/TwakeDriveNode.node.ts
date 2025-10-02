@@ -584,9 +584,12 @@ export class TwakeDriveNode implements INodeType {
 					//////////////////////
 					// FILES OPERATIONS //
 					//////////////////////
-					case 'getFileFolder':
-						await TwakeFilesHelpers.getFileFolder.call(this, itemIndex, ezlog);
+					case 'getFileFolder': {
+						const out = await TwakeFilesHelpers.getFileFolder.call(this, itemIndex, ezlog);
+						itemsOut.push({ json: out }); // on émet l’item ici, point.
 						break;
+					}
+
 					case 'uploadFile': {
 						const out = await TwakeFilesHelpers.uploadFile.call(this, itemIndex, items, ezlog);
 						itemsOut.push({ json: out });
