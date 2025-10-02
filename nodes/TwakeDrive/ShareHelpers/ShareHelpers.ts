@@ -1,14 +1,39 @@
 import { IExecuteFunctions, NodeOperationError } from 'n8n-workflow';
 
+function resolveDriveBase(baseUrl: string) {
+	const u = new URL(baseUrl);
+	const host = u.hostname;
+	const parts = host.split('.');
+
+	// drive.instance.domaine -> instance-drive.domaine
+	if (parts[0] === 'drive' && parts.length >= 2) {
+		const instance = parts[1];
+		const rest = parts.slice(2).join('.');
+		const hostname = `${instance}-drive.${rest}`;
+		return `${u.protocol}//${hostname}${u.port ? ':' + u.port : ''}`;
+	}
+
+	// instance-drive.domaine -> inchangé
+	if (parts[0].endsWith('-drive')) {
+		return `${u.protocol}//${u.host}`;
+	}
+
+	// instance.domaine -> instance-drive.domaine
+	const instance = parts[0];
+	const rest = parts.slice(1).join('.');
+	const hostname = `${instance}-drive.${rest}`;
+	return `${u.protocol}//${hostname}${u.port ? ':' + u.port : ''}`;
+}
+
 export async function shareByLink(
 	this: IExecuteFunctions,
 	itemIndex: number,
 	ezlog: (name: string, value: any) => void,
-	credentials: { instanceUrl: string; apiToken: string },
 ) {
-	const itemBag: { [key: string]: any } = {};
-	const instanceUrl = credentials.instanceUrl;
-	const realToken = credentials.apiToken;
+	const itemBag: Record<string, any> = {};
+
+	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const id = this.getNodeParameter('targetId', itemIndex, '') as string;
 	if (!id) {
@@ -26,14 +51,14 @@ export async function shareByLink(
 	const verbs = accessLevel === 'write' ? ['GET', 'POST', 'PATCH', 'DELETE'] : ['GET'];
 
 	const qs: Record<string, string> = {};
-	if (codesCsv) qs['codes'] = codesCsv;
+	if (codesCsv) qs.codes = codesCsv;
 	if (useTtl) {
 		if (!amount || !unit) {
 			throw new NodeOperationError(this.getNode(), 'Duration amount and unit are required', {
 				itemIndex,
 			});
 		}
-		qs['ttl'] = `${amount}${unit}`;
+		qs.ttl = `${amount}${unit}`;
 	}
 
 	const body = {
@@ -52,39 +77,49 @@ export async function shareByLink(
 		},
 	};
 
-	try {
-		const resp = await this.helpers.httpRequest({
-			method: 'POST',
-			url: `${instanceUrl}/permissions`,
-			qs,
-			headers: {
-				Authorization: `Bearer ${realToken}`,
-				Accept: 'application/vnd.api+json',
-				'Content-Type': 'application/vnd.api+json',
-			},
-			body,
-			json: true,
-		});
+	const respRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+		method: 'POST',
+		url: `${baseUrl}/permissions`,
+		qs,
+		headers: {
+			Accept: 'application/vnd.api+json',
+			'Content-Type': 'application/vnd.api+json',
+		},
+		body,
+		json: true,
+	});
 
-		const permissionsId = resp?.data?.id ?? null;
-		const shortcodes = resp?.data?.attributes?.shortcodes ?? null;
-		const u = new URL(instanceUrl);
-		const driveBase = `${u.protocol}//drive.${u.host}`;
-		const shareUrls: Record<string, string> = {};
-		if (shortcodes && typeof shortcodes === 'object') {
-			for (const [label, personalToken] of Object.entries(shortcodes as Record<string, string>)) {
-				shareUrls[label] = `${driveBase}/public?sharecode=${personalToken}`;
-			}
+	const resp = typeof respRaw === 'string' ? JSON.parse(respRaw) : respRaw;
+
+	const permissionsId = resp?.data?.id ?? null;
+	const shortcodes = resp?.data?.attributes?.shortcodes ?? null;
+
+	const driveBase = resolveDriveBase(baseUrl);
+
+	let shareUrls: Record<string, string> | null = null;
+	if (shortcodes && typeof shortcodes === 'object') {
+		shareUrls = {};
+		for (const [label, token] of Object.entries(shortcodes as Record<string, string>)) {
+			shareUrls[label] = `${driveBase}/public?sharecode=${encodeURIComponent(token)}`;
 		}
-		itemBag.shareUrls = shareUrls;
-		itemBag.permissionId = permissionsId;
-
-		ezlog('shareByLink', itemBag);
-
-		return { share: { permissionsId, shareUrls } };
-	} catch (error: any) {
-		throw new NodeOperationError(this.getNode(), error, { itemIndex });
 	}
+
+	itemBag.targetId = id;
+	itemBag.permissionsId = permissionsId;
+	itemBag.shortcodes = shortcodes;
+	itemBag.shareUrls = shareUrls;
+	itemBag.response = resp;
+	ezlog('shareByLink', itemBag);
+
+	return {
+		shareByLink: {
+			targetId: id,
+			permissionsId,
+			shortcodes,
+			shareUrls,
+			response: resp,
+		},
+	};
 }
 
 export async function deleteShareByLink(

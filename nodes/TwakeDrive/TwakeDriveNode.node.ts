@@ -668,9 +668,12 @@ export class TwakeDriveNode implements INodeType {
 					////////////////////////
 					// SHARING OPERATIONS //
 					////////////////////////
-					case 'shareByLink':
-						await TwakeShareHelpers.shareByLink.call(this, itemIndex, ezlog, credentials);
+					case 'shareByLink': {
+						const out = await TwakeShareHelpers.shareByLink.call(this, itemIndex, ezlog);
+						itemsOut.push({ json: out });
 						break;
+					}
+
 					case 'deleteShare':
 						await TwakeShareHelpers.deleteShareByLink.call(this, itemIndex, ezlog, credentials);
 						break;
