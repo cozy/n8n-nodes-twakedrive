@@ -110,16 +110,16 @@ export async function moveFolder(
 	this: IExecuteFunctions,
 	itemIndex: number,
 	ezlog: (name: string, value: any) => void,
-	credentials: { instanceUrl: string; apiToken: string },
 ) {
-	const itemBag: { [key: string]: any } = {};
-	const instanceUrl = credentials.instanceUrl;
-	const realToken = credentials.apiToken;
+	const itemBag: Record<string, any> = {};
+
+	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const folderId = this.getNodeParameter('folderId', itemIndex, '') as string;
 	const useCustomDir = this.getNodeParameter('customDir', itemIndex, false) as boolean;
 	const destDirId = useCustomDir
-		? (this.getNodeParameter('dirId', itemIndex, '') as string)
+		? (this.getNodeParameter('dirId', itemIndex, '') as string) || ''
 		: 'io.cozy.files.root-dir';
 
 	if (!folderId) {
@@ -131,26 +131,35 @@ export async function moveFolder(
 		});
 	}
 
-	const url = `${instanceUrl}/files/${encodeURIComponent(folderId)}`;
-
-	const movedFolderResponse = await this.helpers.httpRequest({
+	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
 		method: 'PATCH',
-		url,
+		url: `${baseUrl}/files/${encodeURIComponent(folderId)}`,
 		headers: {
-			Authorization: `Bearer ${realToken}`,
 			Accept: 'application/vnd.api+json',
 			'Content-Type': 'application/vnd.api+json',
 		},
-		body: JSON.stringify({
+		body: {
 			data: {
 				attributes: { dir_id: destDirId },
 			},
-		}),
+		},
+		json: true,
 	});
+
+	const res = typeof resRaw === 'string' ? JSON.parse(resRaw) : resRaw;
+
 	itemBag.movedFolderId = folderId;
 	itemBag.destinationFolderId = destDirId;
+	itemBag.folder = res;
 	ezlog('moveFolder', itemBag);
-	return { movedFolderResponse };
+
+	return {
+		moveFolder: {
+			folderId,
+			destinationDirId: destDirId,
+			movedFolder: res,
+		},
+	};
 }
 
 export async function renameFolder(
