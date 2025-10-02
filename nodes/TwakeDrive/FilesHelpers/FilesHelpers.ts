@@ -550,3 +550,55 @@ export async function updateFile(
 		},
 	};
 }
+
+export async function renameFile(
+	this: IExecuteFunctions,
+	itemIndex: number,
+	ezlog: (name: string, value: any) => void,
+) {
+	const itemBag: Record<string, any> = {};
+
+	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const baseUrl = instanceUrl.replace(/\/+$/, '');
+
+	const fileId = this.getNodeParameter('fileId', itemIndex, '') as string;
+	const newName = this.getNodeParameter('newName', itemIndex, '') as string;
+
+	if (!newName?.trim()) {
+		throw new NodeOperationError(this.getNode(), 'renameFile - "newName" is required', {
+			itemIndex,
+		});
+	}
+
+	itemBag.fileId = fileId;
+	itemBag.newName = newName;
+
+	const renameRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+		method: 'PATCH',
+		url: `${baseUrl}/files/${encodeURIComponent(fileId)}`,
+		headers: {
+			Accept: 'application/vnd.api+json',
+			'Content-Type': 'application/vnd.api+json',
+		},
+		body: {
+			data: {
+				type: 'io.cozy.files',
+				id: fileId,
+				attributes: { name: newName },
+			},
+		},
+		json: true,
+	});
+
+	const renameResponse = typeof renameRaw === 'string' ? JSON.parse(renameRaw) : renameRaw;
+	itemBag.renamedFile = renameResponse;
+	ezlog('renameFile', itemBag);
+
+	return {
+		renameFile: {
+			fileId,
+			newName,
+			file: renameResponse,
+		},
+	};
+}

@@ -110,6 +110,12 @@ export class TwakeDriveNode implements INodeType {
 						action: 'Move file',
 					},
 					{
+						name: 'Rename File',
+						value: 'renameFile',
+						description: 'Rename the targeted file',
+						action: 'Rename file',
+					},
+					{
 						name: 'Update File',
 						value: 'updateFile',
 						description: 'Update the targeted file',
@@ -323,7 +329,7 @@ export class TwakeDriveNode implements INodeType {
 				description: 'ID of the targeted file',
 				displayOptions: {
 					show: {
-						operation: ['copyFile', 'moveFile', 'updateFile'],
+						operation: ['copyFile', 'moveFile', 'updateFile', 'renameFile'],
 					},
 				},
 			},
@@ -418,7 +424,7 @@ export class TwakeDriveNode implements INodeType {
 				description: 'New name for the created file',
 				displayOptions: {
 					show: {
-						operation: ['createFileFromText'],
+						operation: ['createFileFromText', 'renameFile'],
 					},
 				},
 			},
@@ -622,6 +628,12 @@ export class TwakeDriveNode implements INodeType {
 
 					case 'updateFile': {
 						const out = await TwakeFilesHelpers.updateFile.call(this, itemIndex, items, ezlog);
+						itemsOut.push({ json: out });
+						break;
+					}
+
+					case 'renameFile': {
+						const out = await TwakeFilesHelpers.renameFile.call(this, itemIndex, ezlog);
 						itemsOut.push({ json: out });
 						break;
 					}
