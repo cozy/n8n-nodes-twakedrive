@@ -548,6 +548,8 @@ export class TwakeDriveNode implements INodeType {
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
+		const itemsOut: INodeExecutionData[] = [];
+
 		type TwakeCredentials = {
 			instanceUrl: string;
 			apiToken: string;
@@ -562,8 +564,8 @@ export class TwakeDriveNode implements INodeType {
 
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			const ezlog = createEzlog(items as INodeExecutionData[], itemIndex);
+			const operation = this.getNodeParameter('operation', itemIndex) as string;
 			try {
-				const operation = this.getNodeParameter('operation', itemIndex) as string;
 				switch (operation) {
 					//////////////////////
 					// FILES OPERATIONS //
@@ -571,9 +573,12 @@ export class TwakeDriveNode implements INodeType {
 					case 'getFileFolder':
 						await TwakeFilesHelpers.getFileFolder.call(this, itemIndex, ezlog);
 						break;
-					case 'uploadFile':
-						await TwakeFilesHelpers.uploadFile.call(this, itemIndex, items, ezlog, credentials);
+					case 'uploadFile': {
+						const out = await TwakeFilesHelpers.uploadFile.call(this, itemIndex, items, ezlog);
+						itemsOut.push({ json: out });
 						break;
+					}
+
 					case 'copyFile':
 						await TwakeFilesHelpers.copyFile.call(this, itemIndex, ezlog, credentials);
 						break;
@@ -623,6 +628,6 @@ export class TwakeDriveNode implements INodeType {
 			}
 		}
 
-		return [items];
+		return this.prepareOutputData(itemsOut);
 	}
 }

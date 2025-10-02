@@ -153,49 +153,70 @@ export async function uploadFile(
 	itemIndex: number,
 	items: INodeExecutionData[],
 	ezlog: (name: string, value: any) => void,
-	credentials: { instanceUrl: string; apiToken: string },
 ) {
-	const itemBag: { [key: string]: any } = {};
-	const instanceUrl = credentials.instanceUrl;
+	const logBag: Record<string, any> = {};
+
+	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const baseUrl = instanceUrl.replace(/\/+$/, '');
+
 	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
-	const fileUrl = `${instanceUrl}/files/${dirId}`;
-	const binPropName = this.getNodeParameter('binaryPropertyName', itemIndex, 'data');
-	const binaryData = items[itemIndex].binary?.[binPropName];
-	const realToken = credentials.apiToken;
+	const binPropName = this.getNodeParameter('binaryPropertyName', itemIndex, '') as string;
+	const targetDirId = dirId || 'io.cozy.files.root-dir';
 
-	itemBag.dirId = dirId || 'io.cozy.files.root-dir';
+	const binaries = items[itemIndex].binary || {};
+	const keys = Object.keys(binaries);
 
-	if (!binaryData) {
-		throw new NodeOperationError(this.getNode(), 'UploadFile - Binary data not found', {
+	logBag.dirId = targetDirId;
+
+	let chosenKey: string | undefined;
+	if (binPropName && binaries[binPropName]) {
+		chosenKey = binPropName;
+	} else if (!binPropName && keys.length === 1) {
+		chosenKey = keys[0];
+	} else {
+		throw new NodeOperationError(
+			this.getNode(),
+			`UploadFile - Ambiguous binary selection. Present keys: ${keys.join(', ')}. ` +
+				`Set "binaryPropertyName" to one of these.`,
+			{ itemIndex },
+		);
+	}
+
+	const bin = binaries[chosenKey!];
+	if (!bin) {
+		throw new NodeOperationError(this.getNode(), `UploadFile - Binary "${chosenKey}" not found`, {
 			itemIndex,
 		});
 	}
 
-	const fileName = binaryData.fileName;
-	const fileData = binaryData.data;
-	const mimeType = binaryData.mimeType;
+	const url = `${baseUrl}/files/${targetDirId}`;
+	const fileName = bin.fileName as string;
+	const mimeType = (bin.mimeType as string) || 'application/octet-stream';
+	const fileBuffer = Buffer.from(bin.data as string, 'base64');
 
-	const fileBuffer = Buffer.from(fileData, 'base64');
-
-	const createdFileResponse = await this.helpers.httpRequest({
+	logBag.binaryPropertyName = chosenKey;
+	logBag.fileName = fileName;
+	const response = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
 		method: 'POST',
-		url: fileUrl,
+		url,
 		headers: {
-			Authorization: `Bearer ${realToken}`,
 			Accept: 'application/vnd.api+json',
 			'Content-Type': mimeType,
 		},
-		qs: {
-			Name: fileName,
-			Type: 'file',
-		},
+		qs: { Name: fileName, Type: 'file' },
 		body: fileBuffer,
+		json: true,
+		timeout: 30000,
 	});
-	const createdFileId = createdFileResponse.data.id;
-	itemBag.uploadedFileId = createdFileId;
-	itemBag.file = createdFileResponse;
-	ezlog('uploadFile', itemBag);
-	return { createdFileId };
+
+	logBag.fileId = response?.data?.id ?? response?.id;
+	logBag.file = response;
+	ezlog('uploadFile', logBag);
+
+	return {
+		dirId: logBag.dirId,
+		file: response,
+	};
 }
 
 export async function copyFile(
