@@ -108,7 +108,7 @@ export async function getFileFolder(
 		(itemsOut[itemIndex].json as any).getFile = itemBag;
 
 		ezlog('getFile', itemBag);
-		return { wantedFilesArray };
+		return { getFile: { wantedFilesArray: wantedFilesArray } };
 	}
 
 	// --- targetType === 'folder'
@@ -154,7 +154,7 @@ export async function getFileFolder(
 
 	ezlog('getFolder', itemBag);
 
-	return { wantedFilesArray };
+	return { getFolder: { wantedFilesArray: wantedFilesArray } };
 }
 
 export async function uploadFile(
@@ -257,8 +257,7 @@ export async function uploadFile(
 	ezlog('uploadFile', logBag);
 
 	return {
-		dirId: logBag.dirId,
-		file: response,
+		uploadFile: { dirId: logBag.dirId, file: response },
 	};
 }
 
@@ -266,42 +265,46 @@ export async function copyFile(
 	this: IExecuteFunctions,
 	itemIndex: number,
 	ezlog: (name: string, value: any) => void,
-	credentials: { instanceUrl: string; apiToken: string },
-): Promise<void> {
-	const itemBag: { [key: string]: any } = {};
-	const instanceUrl = credentials.instanceUrl;
+) {
+	const itemBag: Record<string, any> = {};
+
+	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const baseUrl = instanceUrl.replace(/\/+$/, '');
+
 	const fileId = this.getNodeParameter('fileId', itemIndex) as string;
-	const dirId = this.getNodeParameter('dirId', itemIndex) as string;
-	const wantsCustomName = this.getNodeParameter('customName', itemIndex) as boolean;
+	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
+	const wantsCustomName = this.getNodeParameter('customName', itemIndex, false) as boolean;
 	const newName = wantsCustomName
 		? (this.getNodeParameter('newName', itemIndex) as string)
 		: undefined;
-	const realToken = credentials.apiToken;
+
+	const targetDirId = dirId || 'io.cozy.files.root-dir';
 	const qs: Record<string, string> = {};
 
-	itemBag.dirId = dirId || 'io.cozy.files.root-dir';
+	itemBag.dirId = targetDirId;
 	itemBag.customName = wantsCustomName ? newName : null;
 
-	if (dirId) {
-		qs.DirID = dirId;
-	}
-	if (newName) {
-		qs.Name = newName;
-	}
+	if (dirId) qs.DirID = dirId;
+	if (newName) qs.Name = newName;
 
-	const copiedFile = await this.helpers.request({
+	const copiedFile = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
 		method: 'POST',
-		uri: `${instanceUrl}/files/${fileId}/copy`,
+		url: `${baseUrl}/files/${encodeURIComponent(fileId)}/copy`,
 		headers: {
-			Authorization: `Bearer ${realToken}`,
+			Accept: 'application/vnd.api+json',
 			'Content-Type': 'application/json',
 		},
 		qs,
 		json: true,
 	});
-	itemBag.copyId = copiedFile.data?.id;
+
+	itemBag.copyId = copiedFile?.data?.id ?? copiedFile?.id;
 	itemBag.file = copiedFile;
 	ezlog('copyFile', itemBag);
+
+	return {
+		copyFile: { dirId: itemBag.dirId, file: copiedFile },
+	};
 }
 
 export async function deleteFile(
