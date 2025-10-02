@@ -5,16 +5,16 @@ export async function createFolder(
 	this: IExecuteFunctions,
 	itemIndex: number,
 	ezlog: (name: string, value: any) => void,
-	credentials: { instanceUrl: string; apiToken: string },
 ) {
-	const itemBag: { [key: string]: any } = {};
-	const instanceUrl = credentials.instanceUrl;
-	const realToken = credentials.apiToken;
+	const itemBag: Record<string, any> = {};
+
+	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const dirName = this.getNodeParameter('dirName', itemIndex, '') as string;
-	const useCustomDir = this.getNodeParameter('dirId', itemIndex, false) as boolean;
+	const useCustomDir = this.getNodeParameter('customDir', itemIndex, false) as boolean; // <-- FIX
 	const targetDirId = useCustomDir
-		? (this.getNodeParameter('dirId', itemIndex, '') as string)
+		? (this.getNodeParameter('dirId', itemIndex, '') as string) || ''
 		: 'io.cozy.files.root-dir';
 
 	if (useCustomDir && !targetDirId) {
@@ -25,37 +25,41 @@ export async function createFolder(
 		);
 	}
 
-	const url = `${instanceUrl}/files/${encodeURIComponent(targetDirId)}`;
+	const url = `${baseUrl}/files/${encodeURIComponent(targetDirId)}`;
 	const qs: Record<string, string> = { Type: 'directory', Name: dirName };
 
-	try {
-		const response = await this.helpers.httpRequest({
-			method: 'POST',
-			url,
-			qs,
-			headers: {
-				Authorization: `Bearer ${realToken}`,
-				Accept: 'application/vnd.api+json',
-			},
-			json: true,
+	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+		method: 'POST',
+		url,
+		qs,
+		headers: {
+			Accept: 'application/vnd.api+json',
+			'Content-Type': 'application/json',
+		},
+		json: true,
+	});
+
+	const res = typeof resRaw === 'string' ? JSON.parse(resRaw) : resRaw;
+
+	const createdFolderId = res?.data?.id ?? res?.id;
+	if (!createdFolderId) {
+		throw new NodeOperationError(this.getNode(), 'Missing created folder id in response', {
+			itemIndex,
 		});
-
-		const createdFolderId = response?.data?.id;
-		if (!createdFolderId) {
-			throw new NodeOperationError(this.getNode(), 'Missing created folder id in response', {
-				itemIndex,
-			});
-		}
-		itemBag.createdfolderId = createdFolderId;
-		itemBag.createdFolderParent = targetDirId;
-		itemBag.createdFolder = response?.data;
-
-		ezlog('createFolder', itemBag);
-
-		return { createdFolderId };
-	} catch (error: any) {
-		throw new NodeOperationError(this.getNode(), error, { itemIndex });
 	}
+
+	itemBag.createdFolderId = createdFolderId;
+	itemBag.createdFolderParent = targetDirId;
+	itemBag.createdFolder = res?.data ?? res;
+	ezlog('createFolder', itemBag);
+
+	return {
+		createFolder: {
+			parentDirId: targetDirId,
+			createdFolderId,
+			folder: res,
+		},
+	};
 }
 
 export async function deleteFolder(

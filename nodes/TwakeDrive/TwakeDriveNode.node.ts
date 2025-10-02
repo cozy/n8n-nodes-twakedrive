@@ -641,9 +641,12 @@ export class TwakeDriveNode implements INodeType {
 					////////////////////////////
 					// DIRECTORIES OPERATIONS //
 					////////////////////////////
-					case 'createFolder':
-						await TwakeDirectoriesHelpers.createFolder.call(this, itemIndex, ezlog, credentials);
+					case 'createFolder': {
+						const out = await TwakeDirectoriesHelpers.createFolder.call(this, itemIndex, ezlog);
+						itemsOut.push({ json: out });
 						break;
+					}
+
 					case 'deleteFolder':
 						await TwakeDirectoriesHelpers.deleteFolder.call(this, itemIndex, ezlog, credentials);
 						break;
