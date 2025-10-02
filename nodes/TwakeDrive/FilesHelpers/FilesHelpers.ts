@@ -349,37 +349,56 @@ export async function createFileFromText(
 	this: IExecuteFunctions,
 	itemIndex: number,
 	ezlog: (name: string, value: any) => void,
-	credentials: { instanceUrl: string; apiToken: string },
 ) {
-	const itemBag: { [key: string]: any } = {};
-	const instanceUrl = credentials.instanceUrl;
-	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
+	const itemBag: Record<string, any> = {};
+
+	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const baseUrl = instanceUrl.replace(/\/+$/, '');
+
+	const dirIdParam =
+		(this.getNodeParameter('dirId', itemIndex, '') as string) || 'io.cozy.files.root-dir';
 	const textContent = this.getNodeParameter('textContent', itemIndex, '') as string;
 	const fileName = this.getNodeParameter('newName', itemIndex, '') as string;
-	const fileUrl = `${instanceUrl}/files/${dirId}`;
-	const realToken = credentials.apiToken;
 
-	itemBag.destinationDirId = dirId || 'io.cozy.files.root-dir';
-	itemBag.textContent = textContent;
+	itemBag.destinationDirId = dirIdParam;
 	itemBag.filename = fileName;
+	itemBag.textContentLength = textContent?.length ?? 0;
 
-	const createdFileResponse = await this.helpers.httpRequest({
-		method: 'POST',
-		url: fileUrl,
-		headers: {
-			Authorization: `Bearer ${realToken}`,
-			Accept: 'application/vnd.api+json',
+	const createdFileResponseRaw = await this.helpers.requestWithAuthentication.call(
+		this,
+		'twakeDriveApi',
+		{
+			method: 'POST',
+			url: `${baseUrl}/files/${encodeURIComponent(dirIdParam)}`,
+			headers: {
+				Accept: 'application/vnd.api+json',
+				'Content-Type': 'text/plain; charset=utf-8',
+			},
+			qs: {
+				Name: fileName,
+				Type: 'file',
+			},
+			body: textContent,
+			json: true,
 		},
-		qs: {
-			Name: fileName,
-			Type: 'file',
-		},
-		body: textContent,
-	} as any);
-	itemBag.createdFileId = createdFileResponse.data?.id;
+	);
+
+	const createdFileResponse =
+		typeof createdFileResponseRaw === 'string'
+			? JSON.parse(createdFileResponseRaw)
+			: createdFileResponseRaw;
+
+	itemBag.createdFileId = createdFileResponse?.data?.id ?? createdFileResponse?.id;
 	itemBag.createdFile = createdFileResponse;
 	ezlog('createFileFromText', itemBag);
-	return { createdFileResponse };
+
+	return {
+		createFileFromText: {
+			dirId: dirIdParam,
+			createdFileId: itemBag.createdFileId,
+			file: createdFileResponse,
+		},
+	};
 }
 
 export async function moveFile(

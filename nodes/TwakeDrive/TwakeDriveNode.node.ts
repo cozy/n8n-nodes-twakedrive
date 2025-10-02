@@ -608,9 +608,12 @@ export class TwakeDriveNode implements INodeType {
 						break;
 					}
 
-					case 'createFileFromText':
-						await TwakeFilesHelpers.createFileFromText.call(this, itemIndex, ezlog, credentials);
+					case 'createFileFromText': {
+						const out = await TwakeFilesHelpers.createFileFromText.call(this, itemIndex, ezlog);
+						itemsOut.push({ json: out });
 						break;
+					}
+
 					case 'moveFile':
 						await TwakeFilesHelpers.moveFile.call(this, itemIndex, ezlog, credentials);
 						break;
