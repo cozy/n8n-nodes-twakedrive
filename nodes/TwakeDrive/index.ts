@@ -1,6 +1,6 @@
 // src/index.ts
 import { TwakeDriveNode } from './TwakeDriveNode.node';
-import { TwakeDriveApi } from '../../credentials/TwakeDriveApi.credentials';
+import { TwakeDriveOAuth2Api } from '../../credentials/TwakeDriveOAuth2Api.credentials';
 
 export const nodes = [TwakeDriveNode];
-export const credentials = [TwakeDriveApi];
+export const credentials = [TwakeDriveOAuth2Api];

@@ -32,7 +32,9 @@ export async function shareByLink(
 ) {
 	const itemBag: Record<string, any> = {};
 
-	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
+		instanceUrl: string;
+	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const id = this.getNodeParameter('targetId', itemIndex, '') as string;
@@ -77,7 +79,7 @@ export async function shareByLink(
 		},
 	};
 
-	const respRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+	const respRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 		method: 'POST',
 		url: `${baseUrl}/permissions`,
 		qs,
@@ -129,7 +131,9 @@ export async function deleteShareByLink(
 ) {
 	const itemBag: Record<string, any> = {};
 
-	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
+		instanceUrl: string;
+	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	// permissionsId vient du dropdown (payload JSON stringifié)
@@ -164,7 +168,7 @@ export async function deleteShareByLink(
 		itemBag.fullPermissionDeletion = true;
 		itemBag.deletionType = !useLabels ? 'toggle_off' : 'no_labels';
 
-		const delRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+		const delRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 			method: 'DELETE',
 			url: `${baseUrl}/permissions/${encodeURIComponent(permissionsId)}`,
 			headers: {
@@ -233,7 +237,7 @@ export async function deleteShareByLink(
 		);
 	}
 
-	const patchRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+	const patchRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 		method: 'PATCH',
 		url: `${baseUrl}/permissions/${encodeURIComponent(permissionsId)}`,
 		headers: {

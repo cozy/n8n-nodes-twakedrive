@@ -25,7 +25,7 @@ export class TwakeDriveNode implements INodeType {
 		},
 		credentials: [
 			{
-				name: 'twakeDriveApi',
+				name: 'twakeDriveOAuth2Api',
 				required: true,
 			},
 		],
@@ -60,7 +60,7 @@ export class TwakeDriveNode implements INodeType {
 						name: 'List Files',
 						value: 'getFileFolder',
 						description: 'List a folder content or fetch a single file depending on Target',
-						action: 'Get files/folder',
+						action: 'Get files folder',
 					},
 				],
 			},
@@ -256,6 +256,7 @@ export class TwakeDriveNode implements INodeType {
 				name: 'useTtl',
 				type: 'boolean',
 				default: false,
+				description: 'Whether to set an expiry for the share',
 				displayOptions: { show: { operation: ['shareByLink'] } },
 			},
 			{
@@ -301,6 +302,7 @@ export class TwakeDriveNode implements INodeType {
 				name: 'usePassword',
 				type: 'boolean',
 				default: false,
+				description: 'Whether to protect the share with a password',
 				displayOptions: { show: { operation: ['shareByLink'] } },
 			},
 			{
@@ -338,6 +340,7 @@ export class TwakeDriveNode implements INodeType {
 				displayName: 'Choose Destination Folder',
 				name: 'customDir',
 				type: 'boolean',
+				description: 'Whether to choose a destination folder',
 				default: false,
 				displayOptions: {
 					show: {
@@ -378,12 +381,11 @@ export class TwakeDriveNode implements INodeType {
 				},
 			},
 			{
-				displayName: 'Overwrite if exists',
+				displayName: 'Overwrite if Exists',
 				name: 'overwriteIfExists',
 				type: 'boolean',
 				default: false,
-				description:
-					'If enabled, overwrite a file with the same name in the destination directory.',
+				description: 'Whether to overwrite a file with the same name in the destination directory',
 				displayOptions: {
 					show: {
 						operation: ['uploadFile'],
@@ -396,6 +398,7 @@ export class TwakeDriveNode implements INodeType {
 				name: 'customName',
 				type: 'boolean',
 				default: false,
+				description: 'Whether to set a custom name',
 				displayOptions: {
 					show: {
 						operation: ['copyFile', 'updateFile'],
@@ -488,7 +491,7 @@ export class TwakeDriveNode implements INodeType {
 		loadOptions: {
 			// Show all permissions "share-by-link" in a dropdown
 			async loadSharePermissions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as {
+				const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
 					instanceUrl: string;
 				};
 				const baseUrl: string = (instanceUrl || '').replace(/\/+$/, '');
@@ -504,7 +507,7 @@ export class TwakeDriveNode implements INodeType {
 
 					const respRaw: unknown = await this.helpers.requestWithAuthentication.call(
 						this,
-						'twakeDriveApi',
+						'twakeDriveOAuth2Api',
 						{
 							method: 'GET',
 							url,

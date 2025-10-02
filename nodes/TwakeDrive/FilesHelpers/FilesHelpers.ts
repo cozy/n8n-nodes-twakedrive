@@ -7,7 +7,7 @@ export async function getFileFolder(
 ) {
 	const itemsOut: INodeExecutionData[] = this.getInputData();
 	const itemBag: Record<string, any> = {};
-	const cred = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const cred = (await this.getCredentials('twakeDriveOAuth2Api')) as { instanceUrl: string };
 	const instanceUrl = cred.instanceUrl.replace(/\/$/, '');
 	const targetType = this.getNodeParameter('targetType', itemIndex, 'folder') as 'file' | 'folder';
 	const idParam = this.getNodeParameter('targetId', itemIndex, '') as string;
@@ -21,13 +21,17 @@ export async function getFileFolder(
 		}
 		itemBag.targetId = idParam;
 		// --- Metadata
-		const metaResp = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
-			method: 'GET',
-			baseURL: instanceUrl,
-			url: `/files/${encodeURIComponent(idParam)}`,
-			headers: { Accept: 'application/vnd.api+json' },
-			json: true,
-		} as any);
+		const metaResp = await this.helpers.requestWithAuthentication.call(
+			this,
+			'twakeDriveOAuth2Api',
+			{
+				method: 'GET',
+				baseURL: instanceUrl,
+				url: `/files/${encodeURIComponent(idParam)}`,
+				headers: { Accept: 'application/vnd.api+json' },
+				json: true,
+			} as any,
+		);
 		const metaPayload = (metaResp as any)?.data ?? metaResp;
 		const single = (metaPayload?.data ?? metaPayload) as any;
 		wantedFilesArray.push(single);
@@ -38,7 +42,7 @@ export async function getFileFolder(
 		const fileName = single?.attributes?.name || String(fileId);
 		const mimeType = single?.attributes?.mime || 'application/octet-stream';
 		const downloadUrl = `${instanceUrl}/files/download/${encodeURIComponent(fileId)}`;
-		const dl = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+		const dl = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 			method: 'GET',
 			baseURL: instanceUrl,
 			url: `/files/download/${encodeURIComponent(fileId)}`,
@@ -121,7 +125,7 @@ export async function getFileFolder(
 		const qs: Record<string, string | number> = { 'page[limit]': 30 };
 		if (cursor) qs['page[cursor]'] = cursor;
 
-		const resp = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+		const resp = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 			method: 'GET',
 			baseURL: instanceUrl,
 			url: `/files/${encodeURIComponent(listDirId)}`,
@@ -164,7 +168,9 @@ export async function uploadFile(
 	ezlog: (name: string, value: any) => void,
 ) {
 	const logBag: Record<string, any> = {};
-	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
+		instanceUrl: string;
+	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
 	const binPropName = (this.getNodeParameter('binaryPropertyName', itemIndex, '') as string).trim();
@@ -211,12 +217,16 @@ export async function uploadFile(
 			},
 			limit: 1,
 		};
-		const findResp = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
-			method: 'POST',
-			url: `${baseUrl}/files/_find`,
-			body: findBody,
-			json: true,
-		});
+		const findResp = await this.helpers.requestWithAuthentication.call(
+			this,
+			'twakeDriveOAuth2Api',
+			{
+				method: 'POST',
+				url: `${baseUrl}/files/_find`,
+				body: findBody,
+				json: true,
+			},
+		);
 		const arr = Array.isArray(findResp?.data) ? findResp.data : [];
 		existingFileId = arr[0]?.id;
 	}
@@ -224,7 +234,7 @@ export async function uploadFile(
 	let response: any;
 
 	if (existingFileId) {
-		response = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+		response = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 			method: 'PUT',
 			url: `${baseUrl}/files/${existingFileId}`,
 			headers: {
@@ -237,7 +247,7 @@ export async function uploadFile(
 		});
 		logBag.overwrite = { used: true, existingFileId };
 	} else {
-		response = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+		response = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 			method: 'POST',
 			url: `${baseUrl}/files/${targetDirId}`,
 			headers: {
@@ -268,7 +278,9 @@ export async function copyFile(
 ) {
 	const itemBag: Record<string, any> = {};
 
-	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
+		instanceUrl: string;
+	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const fileId = this.getNodeParameter('fileId', itemIndex) as string;
@@ -287,16 +299,20 @@ export async function copyFile(
 	if (dirId) qs.DirID = dirId;
 	if (newName) qs.Name = newName;
 
-	const copiedFile = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
-		method: 'POST',
-		url: `${baseUrl}/files/${encodeURIComponent(fileId)}/copy`,
-		headers: {
-			Accept: 'application/vnd.api+json',
-			'Content-Type': 'application/json',
+	const copiedFile = await this.helpers.requestWithAuthentication.call(
+		this,
+		'twakeDriveOAuth2Api',
+		{
+			method: 'POST',
+			url: `${baseUrl}/files/${encodeURIComponent(fileId)}/copy`,
+			headers: {
+				Accept: 'application/vnd.api+json',
+				'Content-Type': 'application/json',
+			},
+			qs,
+			json: true,
 		},
-		qs,
-		json: true,
-	});
+	);
 
 	itemBag.copyId = copiedFile?.data?.id ?? copiedFile?.id;
 	itemBag.file = copiedFile;
@@ -314,14 +330,16 @@ export async function deleteFile(
 ) {
 	const itemBag: Record<string, any> = {};
 
-	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
+		instanceUrl: string;
+	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const fileId = this.getNodeParameter('targetId', itemIndex, '') as string;
 
 	const deletedFileResponse = await this.helpers.requestWithAuthentication.call(
 		this,
-		'twakeDriveApi',
+		'twakeDriveOAuth2Api',
 		{
 			method: 'DELETE',
 			url: `${baseUrl}/files/${encodeURIComponent(fileId)}`,
@@ -352,7 +370,9 @@ export async function createFileFromText(
 ) {
 	const itemBag: Record<string, any> = {};
 
-	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
+		instanceUrl: string;
+	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const dirIdParam =
@@ -366,7 +386,7 @@ export async function createFileFromText(
 
 	const createdFileResponseRaw = await this.helpers.requestWithAuthentication.call(
 		this,
-		'twakeDriveApi',
+		'twakeDriveOAuth2Api',
 		{
 			method: 'POST',
 			url: `${baseUrl}/files/${encodeURIComponent(dirIdParam)}`,
@@ -408,7 +428,9 @@ export async function moveFile(
 ) {
 	const itemBag: Record<string, any> = {};
 
-	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
+		instanceUrl: string;
+	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const dirIdParam =
@@ -417,7 +439,7 @@ export async function moveFile(
 
 	const movedFileResponseRaw = await this.helpers.requestWithAuthentication.call(
 		this,
-		'twakeDriveApi',
+		'twakeDriveOAuth2Api',
 		{
 			method: 'PATCH',
 			url: `${baseUrl}/files/${encodeURIComponent(fileId)}`,
@@ -463,7 +485,9 @@ export async function updateFile(
 ) {
 	const itemBag: Record<string, any> = {};
 
-	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
+		instanceUrl: string;
+	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const fileId = this.getNodeParameter('fileId', itemIndex, '') as string;
@@ -494,7 +518,7 @@ export async function updateFile(
 	// Update content
 	const updatedFileResponseRaw = await this.helpers.requestWithAuthentication.call(
 		this,
-		'twakeDriveApi',
+		'twakeDriveOAuth2Api',
 		{
 			method: 'PUT',
 			url: `${baseUrl}/files/${encodeURIComponent(fileId)}`,
@@ -519,22 +543,26 @@ export async function updateFile(
 	if (newName) {
 		itemBag.newFilename = newName;
 
-		const renameRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
-			method: 'PATCH',
-			url: `${baseUrl}/files/${encodeURIComponent(fileId)}`,
-			headers: {
-				Accept: 'application/vnd.api+json',
-				'Content-Type': 'application/vnd.api+json',
-			},
-			body: {
-				data: {
-					type: 'io.cozy.files',
-					id: fileId,
-					attributes: { name: newName },
+		const renameRaw = await this.helpers.requestWithAuthentication.call(
+			this,
+			'twakeDriveOAuth2Api',
+			{
+				method: 'PATCH',
+				url: `${baseUrl}/files/${encodeURIComponent(fileId)}`,
+				headers: {
+					Accept: 'application/vnd.api+json',
+					'Content-Type': 'application/vnd.api+json',
 				},
+				body: {
+					data: {
+						type: 'io.cozy.files',
+						id: fileId,
+						attributes: { name: newName },
+					},
+				},
+				json: true,
 			},
-			json: true,
-		});
+		);
 
 		changedFilenameResponse = typeof renameRaw === 'string' ? JSON.parse(renameRaw) : renameRaw;
 		itemBag.rename = changedFilenameResponse;
@@ -558,7 +586,9 @@ export async function renameFile(
 ) {
 	const itemBag: Record<string, any> = {};
 
-	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
+		instanceUrl: string;
+	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const fileId = this.getNodeParameter('fileId', itemIndex, '') as string;
@@ -573,7 +603,7 @@ export async function renameFile(
 	itemBag.fileId = fileId;
 	itemBag.newName = newName;
 
-	const renameRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+	const renameRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 		method: 'PATCH',
 		url: `${baseUrl}/files/${encodeURIComponent(fileId)}`,
 		headers: {

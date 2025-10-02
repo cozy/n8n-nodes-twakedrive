@@ -1,8 +1,11 @@
 import type { ICredentialType, INodeProperties, Icon } from 'n8n-workflow';
 
-export class TwakeDriveApi implements ICredentialType {
-	name = 'twakeDriveApi';
+export class TwakeDriveOAuth2Api implements ICredentialType {
 	displayName = 'Twake Drive OAuth2 API';
+	documentationUrl =
+		'https://github.com/cozy/cozy-stack/blob/master/docs/auth.md#what-about-oauth2';
+
+	name = 'twakeDriveOAuth2Api';
 	extends = ['oAuth2Api'];
 
 	icon: Icon = {

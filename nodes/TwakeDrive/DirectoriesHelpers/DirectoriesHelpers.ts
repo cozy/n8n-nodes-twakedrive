@@ -8,7 +8,9 @@ export async function createFolder(
 ) {
 	const itemBag: Record<string, any> = {};
 
-	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
+		instanceUrl: string;
+	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const dirName = this.getNodeParameter('dirName', itemIndex, '') as string;
@@ -28,7 +30,7 @@ export async function createFolder(
 	const url = `${baseUrl}/files/${encodeURIComponent(targetDirId)}`;
 	const qs: Record<string, string> = { Type: 'directory', Name: dirName };
 
-	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 		method: 'POST',
 		url,
 		qs,
@@ -69,7 +71,9 @@ export async function deleteFolder(
 ) {
 	const itemBag: Record<string, any> = {};
 
-	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
+		instanceUrl: string;
+	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
@@ -77,7 +81,7 @@ export async function deleteFolder(
 		throw new NodeOperationError(this.getNode(), 'Directory ID is required', { itemIndex });
 	}
 
-	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 		method: 'DELETE',
 		url: `${baseUrl}/files/${encodeURIComponent(dirId)}`,
 		headers: {
@@ -113,7 +117,9 @@ export async function moveFolder(
 ) {
 	const itemBag: Record<string, any> = {};
 
-	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
+		instanceUrl: string;
+	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const folderId = this.getNodeParameter('folderId', itemIndex, '') as string;
@@ -131,7 +137,7 @@ export async function moveFolder(
 		});
 	}
 
-	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 		method: 'PATCH',
 		url: `${baseUrl}/files/${encodeURIComponent(folderId)}`,
 		headers: {
@@ -169,7 +175,9 @@ export async function renameFolder(
 ) {
 	const itemBag: Record<string, any> = {};
 
-	const { instanceUrl } = (await this.getCredentials('twakeDriveApi')) as { instanceUrl: string };
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
+		instanceUrl: string;
+	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const folderId = this.getNodeParameter('folderId', itemIndex, '') as string;
@@ -182,7 +190,7 @@ export async function renameFolder(
 		throw new NodeOperationError(this.getNode(), 'New Folder Name is required', { itemIndex });
 	}
 
-	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveApi', {
+	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 		method: 'PATCH',
 		url: `${baseUrl}/files/${encodeURIComponent(folderId)}`,
 		headers: {
