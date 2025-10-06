@@ -126,6 +126,10 @@ This is a community node. If you encounter issues or have feature requests, feel
 
 ## Version history
 
+### 1.3.1
+
+- Little patch to fix the binary's return on `getFileFolder` operation
+
 ### 1.3.0
 
 #### 🚨 Breaking changes

@@ -6,6 +6,10 @@ export async function getFileFolder(
 	ezlog: (name: string, value: any) => void,
 ) {
 	const itemsOut: INodeExecutionData[] = this.getInputData();
+	if (!itemsOut[itemIndex]) {
+		itemsOut[itemIndex] = { json: {} };
+	}
+
 	const itemBag: Record<string, any> = {};
 	const cred = (await this.getCredentials('twakeDriveOAuth2Api')) as { instanceUrl: string };
 	const instanceUrl = cred.instanceUrl.replace(/\/$/, '');
@@ -44,13 +48,13 @@ export async function getFileFolder(
 		const downloadUrl = `${instanceUrl}/files/download/${encodeURIComponent(fileId)}`;
 		const dl = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 			method: 'GET',
-			baseURL: instanceUrl,
-			url: `/files/download/${encodeURIComponent(fileId)}`,
+			url: `${instanceUrl}/files/download/${encodeURIComponent(fileId)}`,
 			headers: { Accept: '*/*' },
 			json: false,
 			responseType: 'arraybuffer',
 			encoding: null as any,
 		} as any);
+
 		const body = dl && typeof dl === 'object' && 'data' in dl ? (dl as any).data : dl;
 		let buf: Buffer;
 		if (Buffer.isBuffer(body)) {
@@ -108,11 +112,8 @@ export async function getFileFolder(
 			property: finalKey,
 			keySource,
 		};
-		itemsOut[itemIndex].json = itemsOut[itemIndex].json || {};
-		(itemsOut[itemIndex].json as any).getFile = itemBag;
-
-		ezlog('getFile', itemBag);
-		return { getFile: { wantedFilesArray: wantedFilesArray } };
+		itemsOut[itemIndex].json = { data: [single] };
+		return;
 	}
 
 	// --- targetType === 'folder'
@@ -148,17 +149,9 @@ export async function getFileFolder(
 		if (!cursor) break;
 	}
 
-	itemBag.total = wantedFilesArray.length;
-	itemBag.files = wantedFilesArray;
-	itemsOut[itemIndex].json = itemsOut[itemIndex].json || {};
-	(itemsOut[itemIndex].json as any).getFolder = {
-		dirId: listDirId,
-		total: wantedFilesArray.length,
-	};
-
-	ezlog('getFolder', itemBag);
-
-	return { getFolder: { wantedFilesArray: wantedFilesArray } };
+	itemsOut[itemIndex].json = { data: wantedFilesArray }; // JSON-API exact (tableau)
+	ezlog('getFolder', { dirId: listDirId, total: wantedFilesArray.length });
+	return;
 }
 
 export async function uploadFile(
