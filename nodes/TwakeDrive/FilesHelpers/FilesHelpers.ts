@@ -157,7 +157,6 @@ export async function getFileFolder(
 export async function uploadFile(
 	this: IExecuteFunctions,
 	itemIndex: number,
-	items: INodeExecutionData[],
 	ezlog: (name: string, value: any) => void,
 ) {
 	const logBag: Record<string, any> = {};
@@ -169,6 +168,7 @@ export async function uploadFile(
 	const binPropName = (this.getNodeParameter('binaryPropertyName', itemIndex, '') as string).trim();
 	const overwriteIfExists = this.getNodeParameter('overwriteIfExists', itemIndex, false) as boolean;
 	const targetDirId = dirId || 'io.cozy.files.root-dir';
+	const items: INodeExecutionData[] = this.getInputData();
 	const binaries = items[itemIndex].binary || {};
 	const keys = Object.keys(binaries);
 
@@ -259,9 +259,18 @@ export async function uploadFile(
 	logBag.file = response;
 	ezlog('uploadFile', logBag);
 
-	return {
-		uploadFile: { dirId: logBag.dirId, file: response },
+	if (!items[itemIndex]) items[itemIndex] = { json: {} };
+	const srcItem = items[itemIndex];
+
+	srcItem.json = srcItem.json || {};
+	(srcItem.json as any).uploadFile = { dirId: logBag.dirId, file: response };
+
+	srcItem.binary = {
+		...(srcItem.binary || {}),
+		[chosenKey!]: bin,
 	};
+
+	return;
 }
 
 export async function copyFile(
