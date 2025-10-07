@@ -126,7 +126,17 @@ This is a community node. If you encounter issues or have feature requests, feel
 
 ## Version history
 
+### 1.3.2
+
+- Ensure `uploadFile` operation return all input binaries
+
 ### 1.3.1
+
+#### 🚨 Breaking changes
+
+- `getFileFolder` return data structure has been changed. If you are using this operation in your workflow, you will need to make modifications accordingly
+
+It was not meant to be pushed already, but this kind of changes will come in the future for every operations to harmonize returned items
 
 - Little patch to fix the binary's return on `getFileFolder` operation
 
