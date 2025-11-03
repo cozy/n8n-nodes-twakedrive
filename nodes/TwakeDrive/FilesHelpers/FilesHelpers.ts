@@ -14,14 +14,21 @@ export async function getFileFolder(
 	const cred = (await this.getCredentials('twakeDriveOAuth2Api')) as { instanceUrl: string };
 	const instanceUrl = cred.instanceUrl.replace(/\/$/, '');
 	const targetType = this.getNodeParameter('targetType', itemIndex, 'folder') as 'file' | 'folder';
-	const idParam = this.getNodeParameter('targetId', itemIndex, '') as string;
+	const inputMode = this.getNodeParameter('inputMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
+	const idParam = (
+		inputMode === 'byId'
+			? (this.getNodeParameter('targetIdById', itemIndex, '') as string)
+			: (this.getNodeParameter('targetId', itemIndex, '') as string)
+	).trim();
 	const wantedFilesArray: any[] = [];
 	itemBag.targetType = targetType;
 	if (targetType === 'file') {
 		if (!idParam) {
-			throw new NodeOperationError(this.getNode(), 'File ID is required when Target = "File"', {
-				itemIndex,
-			});
+			throw new NodeOperationError(
+				this.getNode(),
+				`File ID is required when Target = "File" (inputMode=${inputMode})`,
+				{ itemIndex },
+			);
 		}
 		itemBag.targetId = idParam;
 		// --- Metadata

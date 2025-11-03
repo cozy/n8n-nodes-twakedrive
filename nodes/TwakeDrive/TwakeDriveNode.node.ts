@@ -76,6 +76,18 @@ export class TwakeDriveNode implements INodeType {
 				description: 'Choose whether to list a folder (its contents) or fetch a single file',
 				displayOptions: { show: { resource: ['fileFolder'], operation: ['getFileFolder'] } },
 			},
+			{
+				displayName: 'Input Mode',
+				name: 'inputMode',
+				type: 'options',
+				default: 'dropdown',
+				options: [
+					{ name: 'Dropdown (Browse)', value: 'dropdown' },
+					{ name: 'By ID (Manual)', value: 'byId' },
+				],
+				description: 'Browse with dropdown or paste an ID directly',
+				displayOptions: { show: { resource: ['fileFolder'], operation: ['getFileFolder'] } },
+			},
 
 			// Operation — FILE
 			{
@@ -204,32 +216,38 @@ export class TwakeDriveNode implements INodeType {
 				},
 			},
 			{
-				displayName: 'Parent Folder',
+				displayName: 'Parent Folder Name or ID',
 				name: 'parentDirId',
 				type: 'options',
 				default: '',
-				description: 'Dossier de départ. Laisse vide pour root.',
+				description: 'Starting directory. Leave empty for root. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 				typeOptions: {
 					loadOptionsMethod: 'loadFoldersByParent',
-					loadOptionsDependsOn: ['parentDirId'], // <- important pour bust le cache
+					loadOptionsDependsOn: ['parentDirId'],
 				},
-				displayOptions: { show: { resource: ['fileFolder'], operation: ['getFileFolder'] } },
+				displayOptions: { show: { resource: ['fileFolder'], operation: ['getFileFolder'], inputMode: ['dropdown'] } },
 			},
-
-			// 2) Enfants du parent, filtrés par targetType (file/folder)
 			{
-				displayName: 'Target (dans ce dossier)',
+				displayName: 'Target (in This Folder) Name or ID',
 				name: 'targetId',
 				type: 'options',
 				default: '',
-				description: 'Sélectionne le fichier/dossier. La valeur renvoyée est son ID.',
+				description: 'Select the file/folder. The value is its ID. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 				typeOptions: {
 					loadOptionsMethod: 'loadChildrenByParentAndType',
 					loadOptionsDependsOn: ['parentDirId', 'targetType'],
 				},
-				displayOptions: { show: { resource: ['fileFolder'], operation: ['getFileFolder'] } },
+				displayOptions: { show: { resource: ['fileFolder'], operation: ['getFileFolder'], inputMode: ['dropdown'] } },
 			},
-
+			{
+				displayName: 'Target ID (Manual)',
+				name: 'targetIdById',
+				type: 'string',
+				default: '',
+				placeholder: 'file-or-directory-ID',
+				description: 'Paste the target file/folder ID',
+				displayOptions: { show: { resource: ['fileFolder'], operation: ['getFileFolder'], inputMode: ['byId'] } },
+			},
 			{
 				displayName: 'Permissions Name or ID',
 				name: 'permissionsId',
@@ -621,7 +639,7 @@ export class TwakeDriveNode implements INodeType {
 				const parentId = parentParam || 'io.cozy.files.root-dir';
 
 				const out: INodePropertyOptions[] = [
-					{ name: '🏠 root · io.cozy.files.root-dir', value: 'io.cozy.files.root-dir' },
+					{ name: '🏠 Root · io.cozy.files.root-Dir', value: 'io.cozy.files.root-dir' },
 				];
 
 				try {
