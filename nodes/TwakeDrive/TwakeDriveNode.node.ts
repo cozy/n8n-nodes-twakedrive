@@ -264,31 +264,37 @@ export class TwakeDriveNode implements INodeType {
 					{ name: 'Dropdown (Browse)', value: 'dropdown' },
 					{ name: 'By ID (Manual)', value: 'byId' },
 				],
-				displayOptions: { show: { operation: ['copyFile', 'deleteFile'] } },
+				displayOptions: { show: { operation: ['copyFile', 'deleteFile', 'moveFile'] } },
 			},
 			{
 				displayName: 'Parent Folder (Source) Name or ID',
 				name: 'parentDirIdFile',
 				type: 'options',
 				default: '',
-				description: 'Leave empty for root. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				description:
+					'Leave empty for root. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 				typeOptions: {
-					loadOptionsMethod: 'loadFoldersByParent',
-					loadOptionsDependsOn: ['parentDirIdFile'],
+					loadOptionsMethod: 'loadFoldersByParentSource',
+					loadOptionsDependsOn: ['parentDirIdFile', 'fileSelectMode'],
 				},
-				displayOptions: { show: { operation: ['copyFile', 'deleteFile'], fileSelectMode: ['dropdown'] } },
+				displayOptions: {
+					show: { operation: ['copyFile', 'deleteFile', 'moveFile'], fileSelectMode: ['dropdown'] },
+				},
 			},
 			{
 				displayName: 'File (in This Folder) Name or ID',
 				name: 'fileIdFromDropdown',
 				type: 'options',
-				description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+				description:
+					'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 				default: '',
 				typeOptions: {
 					loadOptionsMethod: 'loadFilesByParent',
 					loadOptionsDependsOn: ['parentDirIdFile'],
 				},
-				displayOptions: { show: { operation: ['copyFile', 'deleteFile'], fileSelectMode: ['dropdown'] } },
+				displayOptions: {
+					show: { operation: ['copyFile', 'deleteFile', 'moveFile'], fileSelectMode: ['dropdown'] },
+				},
 			},
 			{
 				displayName: 'File ID (Manual)',
@@ -296,7 +302,7 @@ export class TwakeDriveNode implements INodeType {
 				type: 'string',
 				default: '',
 				placeholder: 'file-ID',
-				displayOptions: { show: { operation: ['copyFile', 'deleteFile'], fileSelectMode: ['byId'] } },
+				displayOptions: { show: { operation: ['copyFile', 'deleteFile', 'moveFile'], fileSelectMode: ['byId'] } },
 			},
 			{
 				displayName: 'Destination Select Mode',
@@ -307,19 +313,20 @@ export class TwakeDriveNode implements INodeType {
 					{ name: 'Dropdown (Browse)', value: 'dropdown' },
 					{ name: 'By ID (Manual)', value: 'byId' },
 				],
-				displayOptions: { show: { operation: ['copyFile'] } },
+				displayOptions: { show: { operation: ['copyFile', 'moveFile'] } },
 			},
 			{
 				displayName: 'Parent Folder (Destination) Name or ID',
 				name: 'parentDirIdDest',
 				type: 'options',
 				default: '',
-				description: 'Leave empty for root. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				description:
+					'Leave empty for root. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 				typeOptions: {
-					loadOptionsMethod: 'loadFoldersByParent',
-					loadOptionsDependsOn: ['parentDirIdDest'],
+					loadOptionsMethod: 'loadFoldersByParentDest',
+					loadOptionsDependsOn: ['parentDirIdDest', 'dirSelectMode'],
 				},
-				displayOptions: { show: { operation: ['copyFile'], dirSelectMode: ['dropdown'] } },
+				displayOptions: { show: { operation: ['copyFile', 'moveFile'], dirSelectMode: ['dropdown'] } },
 			},
 			{
 				displayName: 'Destination Folder ID (Manual)',
@@ -327,7 +334,7 @@ export class TwakeDriveNode implements INodeType {
 				type: 'string',
 				default: '',
 				placeholder: 'directory-ID',
-				displayOptions: { show: { operation: ['copyFile'], dirSelectMode: ['byId'] } },
+				displayOptions: { show: { operation: ['copyFile', 'moveFile'], dirSelectMode: ['byId'] } },
 			},
 
 			// SHARE DELETE inputs
@@ -349,8 +356,7 @@ export class TwakeDriveNode implements INodeType {
 				name: 'useLabels',
 				type: 'boolean',
 				default: false,
-				description:
-					'Whether to revoke only selected labels. When disabled, the entire share is deleted.',
+				description: 'Whether to revoke only selected labels. When disabled, the entire share is deleted.',
 				displayOptions: { show: { operation: ['deleteShare'] } },
 			},
 			{
@@ -461,7 +467,7 @@ export class TwakeDriveNode implements INodeType {
 				description: 'ID of the targeted file',
 				displayOptions: {
 					show: {
-						operation: ['moveFile', 'updateFile', 'renameFile'],
+						operation: ['updateFile', 'renameFile'],
 					},
 				},
 			},
@@ -473,7 +479,7 @@ export class TwakeDriveNode implements INodeType {
 				default: false,
 				displayOptions: {
 					show: {
-						operation: ['createFileFromText', 'moveFile', 'createFolder', 'moveFolder'],
+						operation: ['createFileFromText', 'createFolder', 'moveFolder'],
 					},
 				},
 			},
@@ -485,7 +491,7 @@ export class TwakeDriveNode implements INodeType {
 				description: 'ID of the destination directory',
 				displayOptions: {
 					show: {
-						operation: ['uploadFile', 'createFileFromText', 'moveFile', 'createFolder', 'moveFolder'],
+						operation: ['uploadFile', 'createFileFromText', 'createFolder', 'moveFolder'],
 						customDir: [true],
 					},
 				},
@@ -502,7 +508,6 @@ export class TwakeDriveNode implements INodeType {
 					},
 				},
 			},
-
 			{
 				displayName: 'Overwrite if Exists',
 				name: 'overwriteIfExists',
@@ -515,7 +520,6 @@ export class TwakeDriveNode implements INodeType {
 					},
 				},
 			},
-
 			{
 				displayName: 'Name of the New File',
 				name: 'customName',
@@ -612,7 +616,6 @@ export class TwakeDriveNode implements INodeType {
 	};
 	methods = {
 		loadOptions: {
-			// Show all permissions "share-by-link" in a dropdown
 			async loadSharePermissions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
 					instanceUrl: string;
@@ -656,8 +659,8 @@ export class TwakeDriveNode implements INodeType {
 								: {};
 						const shortcodes: Record<string, string> =
 							attrs?.shortcodes &&
-							typeof attrs.shortcodes === 'object' &&
-							!Array.isArray(attrs.shortcodes)
+								typeof attrs.shortcodes === 'object' &&
+								!Array.isArray(attrs.shortcodes)
 								? (attrs.shortcodes as Record<string, string>)
 								: {};
 
@@ -677,7 +680,6 @@ export class TwakeDriveNode implements INodeType {
 				return out;
 			},
 
-			// Show list of labels of the selected "share-by-link" permission
 			async loadShareLabels(this: ILoadOptionsFunctions) {
 				const permParam = (this.getCurrentNodeParameter('permissionsId') as string) || '';
 				if (!permParam) return [];
@@ -695,8 +697,8 @@ export class TwakeDriveNode implements INodeType {
 						: {};
 				const shortcodes =
 					parsed?.shortcodes &&
-					typeof parsed.shortcodes === 'object' &&
-					!Array.isArray(parsed.shortcodes)
+						typeof parsed.shortcodes === 'object' &&
+						!Array.isArray(parsed.shortcodes)
 						? (parsed.shortcodes as Record<string, string>)
 						: {};
 
@@ -714,10 +716,10 @@ export class TwakeDriveNode implements INodeType {
 				const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 				const parentParam = String(
-					(this.getCurrentNodeParameter('parentDirIdDest') as string) ??
 					(this.getCurrentNodeParameter('parentDirIdFile') as string) ??
+					(this.getCurrentNodeParameter('parentDirIdDest') as string) ??
 					(this.getCurrentNodeParameter('parentDirId') as string) ??
-					''
+					'',
 				).trim();
 				const parentId = parentParam || 'io.cozy.files.root-dir';
 
@@ -822,78 +824,216 @@ export class TwakeDriveNode implements INodeType {
 				}
 			},
 
-			// Show list of childs (files or folders) of the selected parent
-			async loadChildrenByParentAndType(this: ILoadOptionsFunctions) {
-				const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
-					instanceUrl: string;
-				};
+			async loadFoldersByParentSource(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as { instanceUrl: string };
 				const baseUrl = instanceUrl.replace(/\/+$/, '');
+				const parentId = (String(this.getCurrentNodeParameter('parentDirIdFile') || '').trim() || 'io.cozy.files.root-dir');
 
-				const parentParam = String(this.getCurrentNodeParameter('parentDirId') || '').trim();
-				const parentId = parentParam || 'io.cozy.files.root-dir';
-				const wantDir = String(this.getCurrentNodeParameter('targetType') || 'folder') === 'folder';
-
-				const entries: Array<{ id: string; name: string; isDir: boolean }> = [];
-				let cursor: string | null = null;
+				const out: INodePropertyOptions[] = [{ name: '🏠 Root · io.cozy.files.root-Dir', value: 'io.cozy.files.root-dir' }];
 
 				try {
+					// build ancestors + current
+					let ancestors: Array<{ id: string; name: string }> = [];
+					let current: { id: string; name: string } = {
+						id: parentId,
+						name: parentId === 'io.cozy.files.root-dir' ? 'root' : '',
+					};
+
+					if (parentId !== 'io.cozy.files.root-dir') {
+						const chain: Array<{ id: string; name: string }> = [];
+						let cur: string | null = parentId;
+
+						while (cur && cur !== 'io.cozy.files.root-dir') {
+							const selfRespRaw: any = await (this as any).helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+								method: 'GET',
+								baseURL: baseUrl,
+								url: `/files/${encodeURIComponent(cur)}`,
+								headers: { Accept: 'application/vnd.api+json' },
+								json: true,
+							});
+							const selfData = (typeof selfRespRaw === 'string' ? JSON.parse(selfRespRaw) : selfRespRaw)?.data ?? selfRespRaw;
+							const name = String(selfData?.attributes?.name ?? '');
+							chain.push({ id: String(cur), name });
+
+							const parentOfSelf: string | undefined = typeof selfData?.attributes?.dir_id === 'string' ? selfData.attributes.dir_id : undefined;
+							if (!parentOfSelf || parentOfSelf === cur) break;
+							cur = parentOfSelf;
+						}
+
+						const chainFromRoot = chain.slice().reverse();
+						if (chainFromRoot.length > 0) {
+							current = chainFromRoot[chainFromRoot.length - 1];
+							ancestors = chainFromRoot.slice(0, -1);
+						}
+					}
+
+					// ancestors (keep only root and last parent)
+					if (ancestors.length > 0) {
+						const lastParent = ancestors[ancestors.length - 1];
+						const root = ancestors.find((a) => a.id === 'io.cozy.files.root-dir');
+						const keep = [root, lastParent].filter(Boolean) as Array<{ id: string; name: string }>;
+						for (const a of keep) {
+							const label = `⬆︎ ${a.name || a.id} · ${a.id}`;
+							if (!out.some((o) => o.value === a.id)) out.push({ name: label, value: a.id });
+						}
+					}
+
+					// current (avoid “value not supported”)
+					const labelCur = `📍 ${current.name || current.id} · ${current.id}`;
+					if (!out.some((o) => o.value === parentId)) out.push({ name: labelCur, value: parentId });
+
+					// children (go down)
+					const children: Array<{ id: string; name: string }> = [];
+					let cursor: string | null = null;
+
 					while (true) {
 						const qs: Record<string, string | number> = { 'page[limit]': 30 };
 						if (cursor) qs['page[cursor]'] = cursor;
 
-						const resp = await this.helpers.requestWithAuthentication.call(
-							this,
-							'twakeDriveOAuth2Api',
-							{
-								method: 'GET',
-								baseURL: baseUrl,
-								url: `/files/${encodeURIComponent(parentId)}`,
-								qs,
-								headers: { Accept: 'application/vnd.api+json' },
-								json: true,
-							} as any,
-						);
+						const resp: any = await (this as any).helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+							method: 'GET',
+							baseURL: baseUrl,
+							url: `/files/${encodeURIComponent(parentId)}`,
+							qs,
+							headers: { Accept: 'application/vnd.api+json' },
+							json: true,
+						});
 
-						const chunk = Array.isArray((resp as any)?.included) ? (resp as any).included : [];
+						const chunk = Array.isArray(resp?.included) ? resp.included : [];
 						for (const it of chunk) {
 							const id = String(it?.id || '');
-							if (!id) continue;
 							const attrs = it?.attributes || {};
-							const isDir = String(attrs?.type || '') === 'directory';
-							if ((wantDir && isDir) || (!wantDir && !isDir)) {
-								const nm = String(attrs?.name || attrs?.filename || '');
-								entries.push({ id, name: nm, isDir });
+							if (id && String(attrs?.type || '') === 'directory') {
+								const nm = String(attrs?.name || '');
+								children.push({ id, name: nm });
 							}
 						}
 
-						const nextPageLink = (resp as any)?.links?.next as string | undefined;
-						cursor = nextPageLink
-							? new URL(nextPageLink, baseUrl).searchParams.get('page[cursor]')
-							: null;
+						const nextPageLink = resp?.links?.next as string | undefined;
+						cursor = nextPageLink ? new URL(nextPageLink, baseUrl).searchParams.get('page[cursor]') : null;
 						if (!cursor) break;
 					}
 
-					// Dedup and sort
-					entries.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
-					const seen = new Set<string>();
-					const out: INodePropertyOptions[] = [];
-					for (const e of entries) {
-						if (seen.has(e.id)) continue;
-						seen.add(e.id);
-						out.push({ name: `${e.isDir ? '📁' : '📄'} ${e.name} · ${e.id}`, value: e.id });
-					}
+					children.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+					for (const c of children) out.push({ name: `↳ 📁 ${c.name} · ${c.id}`, value: c.id });
+
 					return out;
 				} catch (err: any) {
 					const status = err?.statusCode || err?.response?.status || 'unknown';
 					const detail = err?.response?.data || err?.message || err;
 					throw new NodeOperationError(
 						this.getNode(),
-						`loadChildrenByParentAndType: GET /files/${parentId} failed (HTTP ${status}) · ${JSON.stringify(detail)}`,
+						`loadFoldersByParentSource: GET /files/${parentId} failed (HTTP ${status}) · ${JSON.stringify(detail)}`,
 					);
 				}
 			},
 
-			// New: list files of a parent directory (for copyFile source selection)
+			async loadFoldersByParentDest(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as { instanceUrl: string };
+				const baseUrl = instanceUrl.replace(/\/+$/, '');
+				const parentId = (String(this.getCurrentNodeParameter('parentDirIdDest') || '').trim() || 'io.cozy.files.root-dir');
+
+				const out: INodePropertyOptions[] = [{ name: '🏠 Root · io.cozy.files.root-Dir', value: 'io.cozy.files.root-dir' }];
+
+				try {
+					// build ancestors + current
+					let ancestors: Array<{ id: string; name: string }> = [];
+					let current: { id: string; name: string } = {
+						id: parentId,
+						name: parentId === 'io.cozy.files.root-dir' ? 'root' : '',
+					};
+
+					if (parentId !== 'io.cozy.files.root-dir') {
+						const chain: Array<{ id: string; name: string }> = [];
+						let cur: string | null = parentId;
+
+						while (cur && cur !== 'io.cozy.files.root-dir') {
+							const selfRespRaw: any = await (this as any).helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+								method: 'GET',
+								baseURL: baseUrl,
+								url: `/files/${encodeURIComponent(cur)}`,
+								headers: { Accept: 'application/vnd.api+json' },
+								json: true,
+							});
+							const selfData = (typeof selfRespRaw === 'string' ? JSON.parse(selfRespRaw) : selfRespRaw)?.data ?? selfRespRaw;
+							const name = String(selfData?.attributes?.name ?? '');
+							chain.push({ id: String(cur), name });
+
+							const parentOfSelf: string | undefined = typeof selfData?.attributes?.dir_id === 'string' ? selfData.attributes.dir_id : undefined;
+							if (!parentOfSelf || parentOfSelf === cur) break;
+							cur = parentOfSelf;
+						}
+
+						const chainFromRoot = chain.slice().reverse();
+						if (chainFromRoot.length > 0) {
+							current = chainFromRoot[chainFromRoot.length - 1];
+							ancestors = chainFromRoot.slice(0, -1);
+						}
+					}
+
+					// ancestors (keep only root and last parent)
+					if (ancestors.length > 0) {
+						const lastParent = ancestors[ancestors.length - 1];
+						const root = ancestors.find((a) => a.id === 'io.cozy.files.root-dir');
+						const keep = [root, lastParent].filter(Boolean) as Array<{ id: string; name: string }>;
+						for (const a of keep) {
+							const label = `⬆︎ ${a.name || a.id} · ${a.id}`;
+							if (!out.some((o) => o.value === a.id)) out.push({ name: label, value: a.id });
+						}
+					}
+
+					// current (avoid “value not supported”)
+					const labelCur = `📍 ${current.name || current.id} · ${current.id}`;
+					if (!out.some((o) => o.value === parentId)) out.push({ name: labelCur, value: parentId });
+
+					// children (go down)
+					const children: Array<{ id: string; name: string }> = [];
+					let cursor: string | null = null;
+
+					while (true) {
+						const qs: Record<string, string | number> = { 'page[limit]': 30 };
+						if (cursor) qs['page[cursor]'] = cursor;
+
+						const resp: any = await (this as any).helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+							method: 'GET',
+							baseURL: baseUrl,
+							url: `/files/${encodeURIComponent(parentId)}`,
+							qs,
+							headers: { Accept: 'application/vnd.api+json' },
+							json: true,
+						});
+
+						const chunk = Array.isArray(resp?.included) ? resp.included : [];
+						for (const it of chunk) {
+							const id = String(it?.id || '');
+							const attrs = it?.attributes || {};
+							if (id && String(attrs?.type || '') === 'directory') {
+								const nm = String(attrs?.name || '');
+								children.push({ id, name: nm });
+							}
+						}
+
+						const nextPageLink = resp?.links?.next as string | undefined;
+						cursor = nextPageLink ? new URL(nextPageLink, baseUrl).searchParams.get('page[cursor]') : null;
+						if (!cursor) break;
+					}
+
+					children.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+					for (const c of children) out.push({ name: `↳ 📁 ${c.name} · ${c.id}`, value: c.id });
+
+					return out;
+				} catch (err: any) {
+					const status = err?.statusCode || err?.response?.status || 'unknown';
+					const detail = err?.response?.data || err?.message || err;
+					throw new NodeOperationError(
+						this.getNode(),
+						`loadFoldersByParentDest: GET /files/${parentId} failed (HTTP ${status}) · ${JSON.stringify(detail)}`,
+					);
+				}
+			},
+
+
+			// List files of a parent directory (for source file selection)
 			async loadFilesByParent(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
 					instanceUrl: string;

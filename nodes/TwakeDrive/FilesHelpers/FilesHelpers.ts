@@ -494,9 +494,24 @@ export async function moveFile(
 	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
+	// source file
+	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
+	const fileIdParam =
+		fileSelectMode === 'byId'
+			? (this.getNodeParameter('fileIdById', itemIndex, '') as string)
+			: (this.getNodeParameter('fileIdFromDropdown', itemIndex, '') as string);
+	const fileId = (fileIdParam || (this.getNodeParameter('fileId', itemIndex, '') as string)).trim();
+	if (!fileId) {
+		throw new NodeOperationError(this.getNode(), 'moveFile - Missing source file ID', { itemIndex });
+	}
+
+	// destination folder
+	const dirSelectMode = this.getNodeParameter('dirSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
 	const dirIdParam =
-		(this.getNodeParameter('dirId', itemIndex, '') as string) || 'io.cozy.files.root-dir';
-	const fileId = this.getNodeParameter('fileId', itemIndex, '') as string;
+		dirSelectMode === 'byId'
+			? (this.getNodeParameter('dirIdById', itemIndex, '') as string)
+			: (this.getNodeParameter('parentDirIdDest', itemIndex, '') as string);
+	const dirId = (dirIdParam || 'io.cozy.files.root-dir').trim();
 
 	const movedFileResponseRaw = await this.helpers.requestWithAuthentication.call(
 		this,
@@ -509,20 +524,15 @@ export async function moveFile(
 				'Content-Type': 'application/vnd.api+json',
 			},
 			body: {
-				data: {
-					attributes: {
-						dir_id: dirIdParam,
-					},
-				},
+				data: { attributes: { dir_id: dirId } },
 			},
 			json: true,
 		},
 	);
 
 	const movedFileResponse =
-		typeof movedFileResponseRaw === 'string'
-			? JSON.parse(movedFileResponseRaw)
-			: movedFileResponseRaw;
+		typeof movedFileResponseRaw === 'string' ? JSON.parse(movedFileResponseRaw) : movedFileResponseRaw;
+
 
 	itemBag.destinationDirId = dirIdParam;
 	itemBag.movedFileId = movedFileResponse?.data?.id ?? movedFileResponse?.id ?? fileId;
