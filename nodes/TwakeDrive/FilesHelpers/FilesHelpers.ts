@@ -86,7 +86,7 @@ export async function getFileFolder(
 		let keySource: 'json' | 'binary' | 'default' = 'default';
 		let binaryPropertyName =
 			typeof (inputItem?.json as any)?.binaryPropertyName === 'string' &&
-			(inputItem!.json as any).binaryPropertyName.trim()
+				(inputItem!.json as any).binaryPropertyName.trim()
 				? (inputItem!.json as any).binaryPropertyName.trim()
 				: '';
 		if (!binaryPropertyName) {
@@ -292,16 +292,59 @@ export async function copyFile(
 	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
-	const fileId = this.getNodeParameter('fileId', itemIndex) as string;
-	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
+	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as
+		| 'dropdown'
+		| 'byId';
+	const fileIdParam =
+		fileSelectMode === 'byId'
+			? (this.getNodeParameter('fileIdById', itemIndex, '') as string)
+			: (this.getNodeParameter('fileIdFromDropdown', itemIndex, '') as string);
+	const fileId = (fileIdParam || (this.getNodeParameter('fileId', itemIndex, '') as string)).trim();
+	const metaResp = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+		method: 'GET',
+		baseURL: baseUrl,
+		url: `/files/${encodeURIComponent(fileId)}`,
+		headers: { Accept: 'application/vnd.api+json' },
+		json: true,
+	} as any);
+
+	const srcName = String(metaResp?.data?.attributes?.name ?? '');
+	const srcExt =
+		srcName && srcName.includes('.') && !srcName.startsWith('.')
+			? `.${srcName.split('.').pop()}`
+			: '';
+
+	if (!fileId) {
+		throw new NodeOperationError(this.getNode(), 'copyFile - Missing source file ID', {
+			itemIndex,
+		});
+	}
+
+	const dirSelectMode = this.getNodeParameter('dirSelectMode', itemIndex, 'dropdown') as
+		| 'dropdown'
+		| 'byId';
+	const dirIdParam =
+		dirSelectMode === 'byId'
+			? (this.getNodeParameter('dirIdById', itemIndex, '') as string)
+			: (this.getNodeParameter('parentDirIdDest', itemIndex, '') as string);
+
+	const dirId = (dirIdParam || '').trim();
+
 	const wantsCustomName = this.getNodeParameter('customName', itemIndex, false) as boolean;
-	const newName = wantsCustomName
-		? (this.getNodeParameter('newName', itemIndex) as string)
-		: undefined;
+	let newName = wantsCustomName ? String(this.getNodeParameter('newName', itemIndex, '')).trim() : '';
+
+	if (wantsCustomName && srcExt) {
+		const base = newName.replace(/\.[^./\\]+$/, '');
+		newName = `${base}${srcExt}`;
+	}
+
 
 	const targetDirId = dirId || 'io.cozy.files.root-dir';
 	const qs: Record<string, string> = {};
 
+	itemBag.fileId = fileId;
+	itemBag.fileSelectMode = fileSelectMode;
+	itemBag.dirSelectMode = dirSelectMode;
 	itemBag.dirId = targetDirId;
 	itemBag.customName = wantsCustomName ? newName : null;
 
@@ -344,7 +387,16 @@ export async function deleteFile(
 	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
-	const fileId = this.getNodeParameter('targetId', itemIndex, '') as string;
+	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
+	const fileIdParam =
+		fileSelectMode === 'byId'
+			? (this.getNodeParameter('fileIdById', itemIndex, '') as string)
+			: (this.getNodeParameter('fileIdFromDropdown', itemIndex, '') as string);
+	const fileId = (fileIdParam || (this.getNodeParameter('targetId', itemIndex, '') as string)).trim();
+	if (!fileId) {
+		throw new NodeOperationError(this.getNode(), 'deleteFile - Missing file ID', { itemIndex });
+	}
+
 
 	const deletedFileResponse = await this.helpers.requestWithAuthentication.call(
 		this,
