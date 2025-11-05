@@ -313,7 +313,7 @@ export class TwakeDriveNode implements INodeType {
 					{ name: 'Dropdown (Browse)', value: 'dropdown' },
 					{ name: 'By ID (Manual)', value: 'byId' },
 				],
-				displayOptions: { show: { operation: ['copyFile', 'moveFile'] } },
+				displayOptions: { show: { operation: ['copyFile', 'moveFile', 'createFileFromText'] } },
 			},
 			{
 				displayName: 'Parent Folder (Destination) Name or ID',
@@ -326,7 +326,7 @@ export class TwakeDriveNode implements INodeType {
 					loadOptionsMethod: 'loadFoldersByParentDest',
 					loadOptionsDependsOn: ['parentDirIdDest', 'dirSelectMode'],
 				},
-				displayOptions: { show: { operation: ['copyFile', 'moveFile'], dirSelectMode: ['dropdown'] } },
+				displayOptions: { show: { operation: ['copyFile', 'moveFile', 'createFileFromText'], dirSelectMode: ['dropdown'] } },
 			},
 			{
 				displayName: 'Destination Folder ID (Manual)',
@@ -334,7 +334,7 @@ export class TwakeDriveNode implements INodeType {
 				type: 'string',
 				default: '',
 				placeholder: 'directory-ID',
-				displayOptions: { show: { operation: ['copyFile', 'moveFile'], dirSelectMode: ['byId'] } },
+				displayOptions: { show: { operation: ['copyFile', 'moveFile', 'createFileFromText'], dirSelectMode: ['byId'] } },
 			},
 
 			// SHARE DELETE inputs
@@ -479,7 +479,7 @@ export class TwakeDriveNode implements INodeType {
 				default: false,
 				displayOptions: {
 					show: {
-						operation: ['createFileFromText', 'createFolder', 'moveFolder'],
+						operation: ['createFolder', 'moveFolder'],
 					},
 				},
 			},
@@ -491,7 +491,7 @@ export class TwakeDriveNode implements INodeType {
 				description: 'ID of the destination directory',
 				displayOptions: {
 					show: {
-						operation: ['uploadFile', 'createFileFromText', 'createFolder', 'moveFolder'],
+						operation: ['uploadFile', 'createFolder', 'moveFolder'],
 						customDir: [true],
 					},
 				},
@@ -516,7 +516,7 @@ export class TwakeDriveNode implements INodeType {
 				description: 'Whether to overwrite a file with the same name in the destination directory',
 				displayOptions: {
 					show: {
-						operation: ['uploadFile'],
+						operation: ['uploadFile', 'createFileFromText'],
 					},
 				},
 			},

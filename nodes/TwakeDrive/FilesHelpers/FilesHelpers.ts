@@ -436,51 +436,96 @@ export async function createFileFromText(
 	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
+	const dirSelectMode = this.getNodeParameter('dirSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
 	const dirIdParam =
-		(this.getNodeParameter('dirId', itemIndex, '') as string) || 'io.cozy.files.root-dir';
+		(
+			dirSelectMode === 'byId'
+				? (this.getNodeParameter('dirIdById', itemIndex, '') as string)
+				: (this.getNodeParameter('parentDirIdDest', itemIndex, '') as string)
+		).trim() ||
+		(this.getNodeParameter('dirId', itemIndex, '') as string).trim() ||
+		'io.cozy.files.root-dir';
+
 	const textContent = this.getNodeParameter('textContent', itemIndex, '') as string;
-	const fileName = this.getNodeParameter('newName', itemIndex, '') as string;
+	const rawName = ((this.getNodeParameter('newName', itemIndex, '') as string) || 'untitled').trim();
+	const safeName = rawName.endsWith('.txt') ? rawName : `${rawName.replace(/\.[^./\\]+$/, '')}.txt`;
+
+	const overwriteIfExists = this.getNodeParameter('overwriteIfExists', itemIndex, false) as boolean;
+
+	const mimeType = 'text/plain; charset=utf-8';
+	const fileBuffer = Buffer.from(textContent ?? '', 'utf8');
+
+	let existingFileId: string | undefined;
+	if (overwriteIfExists) {
+		const findBody = {
+			selector: {
+				dir_id: dirIdParam,
+				name: safeName,
+				type: 'file',
+				trashed: false,
+			},
+			limit: 1,
+		};
+
+		const findResp = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+			method: 'POST',
+			url: `${baseUrl}/files/_find`,
+			body: findBody,
+			json: true,
+		});
+
+		const arr = Array.isArray(findResp?.data) ? findResp.data : [];
+		existingFileId = arr[0]?.id;
+	}
 
 	itemBag.destinationDirId = dirIdParam;
-	itemBag.filename = fileName;
+	itemBag.filename = safeName;
 	itemBag.textContentLength = textContent?.length ?? 0;
 
-	const createdFileResponseRaw = await this.helpers.requestWithAuthentication.call(
-		this,
-		'twakeDriveOAuth2Api',
-		{
-			method: 'POST',
-			url: `${baseUrl}/files/${encodeURIComponent(dirIdParam)}`,
+	let response: any;
+
+	if (overwriteIfExists && existingFileId) {
+		response = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+			method: 'PUT',
+			url: `${baseUrl}/files/${existingFileId}`,
 			headers: {
 				Accept: 'application/vnd.api+json',
-				'Content-Type': 'text/plain; charset=utf-8',
+				'Content-Type': mimeType,
 			},
-			qs: {
-				Name: fileName,
-				Type: 'file',
-			},
-			body: textContent,
+			body: fileBuffer,
 			json: true,
-		},
-	);
+			timeout: 30000,
+		});
+		itemBag.overwrite = { used: true, existingFileId };
+	} else {
+		response = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+			method: 'POST',
+			url: `${baseUrl}/files/${dirIdParam}`,
+			headers: {
+				Accept: 'application/vnd.api+json',
+				'Content-Type': mimeType,
+			},
+			qs: { Name: safeName, Type: 'file' },
+			body: fileBuffer,
+			json: true,
+			timeout: 30000,
+		});
+		itemBag.overwrite = { used: false };
+	}
 
-	const createdFileResponse =
-		typeof createdFileResponseRaw === 'string'
-			? JSON.parse(createdFileResponseRaw)
-			: createdFileResponseRaw;
-
-	itemBag.createdFileId = createdFileResponse?.data?.id ?? createdFileResponse?.id;
-	itemBag.createdFile = createdFileResponse;
+	itemBag.createdFileId = response?.data?.id ?? response?.id;
+	itemBag.createdFile = response;
 	ezlog('createFileFromText', itemBag);
 
 	return {
 		createFileFromText: {
 			dirId: dirIdParam,
 			createdFileId: itemBag.createdFileId,
-			file: createdFileResponse,
+			file: response,
 		},
 	};
 }
+
 
 export async function moveFile(
 	this: IExecuteFunctions,
