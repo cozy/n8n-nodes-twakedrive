@@ -618,11 +618,21 @@ export async function updateFile(
 	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
-	const fileId = this.getNodeParameter('fileId', itemIndex, '') as string;
+	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
+	const fileIdParam =
+		fileSelectMode === 'byId'
+			? (this.getNodeParameter('fileIdById', itemIndex, '') as string)
+			: (this.getNodeParameter('fileIdFromDropdown', itemIndex, '') as string);
+
+	const fileId = (fileIdParam || (this.getNodeParameter('fileId', itemIndex, '') as string)).trim();
+
 	const binPropName =
 		(this.getNodeParameter('binaryPropertyName', itemIndex, 'data') as string) || 'data';
 	const binaryData = items[itemIndex].binary?.[binPropName];
 
+	if (!fileId) {
+		throw new NodeOperationError(this.getNode(), 'UpdateFile - Missing file ID', { itemIndex });
+	}
 	if (!binaryData) {
 		throw new NodeOperationError(
 			this.getNode(),
@@ -632,9 +642,30 @@ export async function updateFile(
 	}
 
 	const wantsCustomName = this.getNodeParameter('customName', itemIndex) as boolean;
-	const newName = wantsCustomName
-		? (this.getNodeParameter('newName', itemIndex) as string)
-		: undefined;
+	const newNameInput = wantsCustomName
+		? String(this.getNodeParameter('newName', itemIndex) ?? '').trim()
+		: '';
+
+	let currentName = '';
+	let finalName = '';
+
+	if (wantsCustomName) {
+		const metaResp = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+			method: 'GET',
+			baseURL: baseUrl,
+			url: `/files/${encodeURIComponent(fileId)}`,
+			headers: { Accept: 'application/vnd.api+json' },
+			json: true,
+		} as any);
+		currentName = String((metaResp as any)?.data?.attributes?.name ?? '');
+
+		const srcExt =
+			currentName && currentName.includes('.') && !currentName.startsWith('.')
+				? `.${currentName.split('.').pop()}`
+				: '';
+		const baseNew = newNameInput.replace(/\.[^./\\]+$/, '');
+		finalName = srcExt ? `${baseNew}${srcExt}` : baseNew;
+	}
 
 	const fileBuffer = Buffer.from(binaryData.data, 'base64');
 	const mimeType = binaryData.mimeType || 'application/octet-stream';
@@ -642,8 +673,8 @@ export async function updateFile(
 	itemBag.fileId = fileId;
 	itemBag.binaryPropertyName = binPropName;
 	itemBag.byteLength = fileBuffer.byteLength;
+	if (wantsCustomName) itemBag.newFilename = finalName;
 
-	// Update content
 	const updatedFileResponseRaw = await this.helpers.requestWithAuthentication.call(
 		this,
 		'twakeDriveOAuth2Api',
@@ -666,11 +697,8 @@ export async function updateFile(
 
 	itemBag.updatedFile = updatedFileResponse;
 
-	// Rename
 	let changedFilenameResponse: any = null;
-	if (newName) {
-		itemBag.newFilename = newName;
-
+	if (wantsCustomName && finalName && finalName !== currentName) {
 		const renameRaw = await this.helpers.requestWithAuthentication.call(
 			this,
 			'twakeDriveOAuth2Api',
@@ -685,7 +713,7 @@ export async function updateFile(
 					data: {
 						type: 'io.cozy.files',
 						id: fileId,
-						attributes: { name: newName },
+						attributes: { name: finalName },
 					},
 				},
 				json: true,
@@ -696,7 +724,64 @@ export async function updateFile(
 		itemBag.rename = changedFilenameResponse;
 	}
 
-	ezlog('updateFile', itemBag);
+	const metaAfter = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+		method: 'GET',
+		baseURL: baseUrl,
+		url: `/files/${encodeURIComponent(fileId)}`,
+		headers: { Accept: 'application/vnd.api+json' },
+		json: true,
+	} as any);
+	const meta = (metaAfter as any)?.data ?? metaAfter;
+	const finalFilename =
+		(wantsCustomName ? finalName : '') ||
+		String(meta?.attributes?.name ?? binaryData.fileName ?? 'updated.bin');
+	const finalMime = String(meta?.attributes?.mime ?? mimeType ?? 'application/octet-stream');
+
+	const dl = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+		method: 'GET',
+		url: `${baseUrl}/files/download/${encodeURIComponent(fileId)}`,
+		headers: { Accept: '*/*' },
+		json: false,
+		responseType: 'arraybuffer',
+		encoding: null as any,
+	} as any);
+
+	const body = dl && typeof dl === 'object' && 'data' in dl ? (dl as any).data : dl;
+	let buf: Buffer;
+	if (Buffer.isBuffer(body)) buf = body;
+	else if (body instanceof ArrayBuffer) buf = Buffer.from(new Uint8Array(body));
+	else if (ArrayBuffer.isView(body)) {
+		const view = body as ArrayBufferView;
+		buf = Buffer.from(view.buffer, view.byteOffset, view.byteLength);
+	} else if (typeof body === 'string') buf = Buffer.from(body, 'binary');
+	else if ((body as any)?.type === 'Buffer' && Array.isArray((body as any)?.data)) {
+		buf = Buffer.from((body as any).data);
+	} else {
+		ezlog('download.unexpected', { kind: typeof body, keys: Object.keys(body || {}) });
+		throw new NodeOperationError(this.getNode(), 'Unexpected binary response type after update');
+	}
+
+	const prepared = await this.helpers.prepareBinaryData(buf, finalFilename, finalMime);
+
+	if (!items[itemIndex]) items[itemIndex] = { json: {} };
+	const outItem = items[itemIndex];
+	outItem.binary = {
+		...(outItem.binary || {}),
+		[binPropName]: prepared,
+	};
+	outItem.json = {
+		...(outItem.json || {}),
+		updateFile: {
+			fileId,
+			contentUpdate: updatedFileResponse,
+			nameUpdate: changedFilenameResponse,
+		},
+	};
+
+	ezlog('updateFile', {
+		...itemBag,
+		outputBinary: { prop: binPropName, name: finalFilename, mime: finalMime, size: prepared.fileSize },
+	});
 
 	return {
 		updateFile: {
@@ -706,6 +791,8 @@ export async function updateFile(
 		},
 	};
 }
+
+
 
 export async function renameFile(
 	this: IExecuteFunctions,

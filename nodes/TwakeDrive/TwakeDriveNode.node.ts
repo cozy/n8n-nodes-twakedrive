@@ -264,7 +264,7 @@ export class TwakeDriveNode implements INodeType {
 					{ name: 'Dropdown (Browse)', value: 'dropdown' },
 					{ name: 'By ID (Manual)', value: 'byId' },
 				],
-				displayOptions: { show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile'] } },
+				displayOptions: { show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile', 'updateFile'] } },
 			},
 			{
 				displayName: 'Parent Folder (Source) Name or ID',
@@ -278,7 +278,7 @@ export class TwakeDriveNode implements INodeType {
 					loadOptionsDependsOn: ['parentDirIdFile', 'fileSelectMode'],
 				},
 				displayOptions: {
-					show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile'], fileSelectMode: ['dropdown'] },
+					show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile', 'updateFile'], fileSelectMode: ['dropdown'] },
 				},
 			},
 			{
@@ -293,7 +293,7 @@ export class TwakeDriveNode implements INodeType {
 					loadOptionsDependsOn: ['parentDirIdFile'],
 				},
 				displayOptions: {
-					show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile'], fileSelectMode: ['dropdown'] },
+					show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile', 'updateFile'], fileSelectMode: ['dropdown'] },
 				},
 			},
 			{
@@ -302,7 +302,7 @@ export class TwakeDriveNode implements INodeType {
 				type: 'string',
 				default: '',
 				placeholder: 'file-ID',
-				displayOptions: { show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile'], fileSelectMode: ['byId'] } },
+				displayOptions: { show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile', 'updateFile'], fileSelectMode: ['byId'] } },
 			},
 			{
 				displayName: 'Destination Select Mode',
@@ -456,20 +456,6 @@ export class TwakeDriveNode implements INodeType {
 				description:
 					'Comma-separated labels; This will be the key(s) of the created codes, each creates a separate link that can be revoked independently',
 				displayOptions: { show: { operation: ['shareByLink'] } },
-			},
-
-			// Legacy File ID (hidden for copyFile; kept for move/update/rename)
-			{
-				displayName: 'File ID',
-				name: 'fileId',
-				type: 'string',
-				default: '',
-				description: 'ID of the targeted file',
-				displayOptions: {
-					show: {
-						operation: ['updateFile'],
-					},
-				},
 			},
 			{
 				displayName: 'Choose Destination Folder',
@@ -1130,10 +1116,12 @@ export class TwakeDriveNode implements INodeType {
 					}
 
 					case 'updateFile': {
-						const out = await TwakeFilesHelpers.updateFile.call(this, itemIndex, items, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeFilesHelpers.updateFile.call(this, itemIndex, items, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]); // forward item with binary
 						break;
 					}
+
 
 					case 'renameFile': {
 						const out = await TwakeFilesHelpers.renameFile.call(this, itemIndex, ezlog);
