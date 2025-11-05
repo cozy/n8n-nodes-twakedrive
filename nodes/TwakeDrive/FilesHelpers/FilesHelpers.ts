@@ -719,17 +719,40 @@ export async function renameFile(
 	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
-	const fileId = this.getNodeParameter('fileId', itemIndex, '') as string;
-	const newName = this.getNodeParameter('newName', itemIndex, '') as string;
+	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
+	const fileIdParam =
+		fileSelectMode === 'byId'
+			? (this.getNodeParameter('fileIdById', itemIndex, '') as string)
+			: (this.getNodeParameter('fileIdFromDropdown', itemIndex, '') as string);
 
-	if (!newName?.trim()) {
-		throw new NodeOperationError(this.getNode(), 'renameFile - "newName" is required', {
-			itemIndex,
-		});
+	const fileId = (fileIdParam || (this.getNodeParameter('fileId', itemIndex, '') as string)).trim();
+	const newNameInput = (this.getNodeParameter('newName', itemIndex, '') as string).trim();
+
+	if (!fileId) {
+		throw new NodeOperationError(this.getNode(), 'renameFile - Missing file ID', { itemIndex });
+	}
+	if (!newNameInput) {
+		throw new NodeOperationError(this.getNode(), 'renameFile - "newName" is required', { itemIndex });
 	}
 
+	const metaResp = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+		method: 'GET',
+		baseURL: baseUrl,
+		url: `/files/${encodeURIComponent(fileId)}`,
+		headers: { Accept: 'application/vnd.api+json' },
+		json: true,
+	} as any);
+
+	const srcName = String((metaResp as any)?.data?.attributes?.name ?? '');
+	const srcExt =
+		srcName && srcName.includes('.') && !srcName.startsWith('.')
+			? `.${srcName.split('.').pop()}`
+			: '';
+	const baseNew = newNameInput.replace(/\.[^./\\]+$/, '');
+	const finalName = srcExt ? `${baseNew}${srcExt}` : baseNew;
+
 	itemBag.fileId = fileId;
-	itemBag.newName = newName;
+	itemBag.newName = finalName;
 
 	const renameRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 		method: 'PATCH',
@@ -742,7 +765,7 @@ export async function renameFile(
 			data: {
 				type: 'io.cozy.files',
 				id: fileId,
-				attributes: { name: newName },
+				attributes: { name: finalName },
 			},
 		},
 		json: true,
@@ -755,8 +778,9 @@ export async function renameFile(
 	return {
 		renameFile: {
 			fileId,
-			newName,
+			newName: finalName,
 			file: renameResponse,
 		},
 	};
 }
+

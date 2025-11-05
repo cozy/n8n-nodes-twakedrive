@@ -264,7 +264,7 @@ export class TwakeDriveNode implements INodeType {
 					{ name: 'Dropdown (Browse)', value: 'dropdown' },
 					{ name: 'By ID (Manual)', value: 'byId' },
 				],
-				displayOptions: { show: { operation: ['copyFile', 'deleteFile', 'moveFile'] } },
+				displayOptions: { show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile'] } },
 			},
 			{
 				displayName: 'Parent Folder (Source) Name or ID',
@@ -278,7 +278,7 @@ export class TwakeDriveNode implements INodeType {
 					loadOptionsDependsOn: ['parentDirIdFile', 'fileSelectMode'],
 				},
 				displayOptions: {
-					show: { operation: ['copyFile', 'deleteFile', 'moveFile'], fileSelectMode: ['dropdown'] },
+					show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile'], fileSelectMode: ['dropdown'] },
 				},
 			},
 			{
@@ -293,7 +293,7 @@ export class TwakeDriveNode implements INodeType {
 					loadOptionsDependsOn: ['parentDirIdFile'],
 				},
 				displayOptions: {
-					show: { operation: ['copyFile', 'deleteFile', 'moveFile'], fileSelectMode: ['dropdown'] },
+					show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile'], fileSelectMode: ['dropdown'] },
 				},
 			},
 			{
@@ -302,7 +302,7 @@ export class TwakeDriveNode implements INodeType {
 				type: 'string',
 				default: '',
 				placeholder: 'file-ID',
-				displayOptions: { show: { operation: ['copyFile', 'deleteFile', 'moveFile'], fileSelectMode: ['byId'] } },
+				displayOptions: { show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile'], fileSelectMode: ['byId'] } },
 			},
 			{
 				displayName: 'Destination Select Mode',
@@ -467,7 +467,7 @@ export class TwakeDriveNode implements INodeType {
 				description: 'ID of the targeted file',
 				displayOptions: {
 					show: {
-						operation: ['updateFile', 'renameFile'],
+						operation: ['updateFile'],
 					},
 				},
 			},
