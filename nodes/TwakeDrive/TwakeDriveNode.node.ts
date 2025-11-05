@@ -313,7 +313,7 @@ export class TwakeDriveNode implements INodeType {
 					{ name: 'Dropdown (Browse)', value: 'dropdown' },
 					{ name: 'By ID (Manual)', value: 'byId' },
 				],
-				displayOptions: { show: { operation: ['copyFile', 'moveFile', 'createFileFromText'] } },
+				displayOptions: { show: { operation: ['copyFile', 'moveFile', 'createFileFromText', 'uploadFile'] } },
 			},
 			{
 				displayName: 'Parent Folder (Destination) Name or ID',
@@ -326,7 +326,7 @@ export class TwakeDriveNode implements INodeType {
 					loadOptionsMethod: 'loadFoldersByParentDest',
 					loadOptionsDependsOn: ['parentDirIdDest', 'dirSelectMode'],
 				},
-				displayOptions: { show: { operation: ['copyFile', 'moveFile', 'createFileFromText'], dirSelectMode: ['dropdown'] } },
+				displayOptions: { show: { operation: ['copyFile', 'moveFile', 'createFileFromText', 'uploadFile'], dirSelectMode: ['dropdown'] } },
 			},
 			{
 				displayName: 'Destination Folder ID (Manual)',
@@ -334,7 +334,7 @@ export class TwakeDriveNode implements INodeType {
 				type: 'string',
 				default: '',
 				placeholder: 'directory-ID',
-				displayOptions: { show: { operation: ['copyFile', 'moveFile', 'createFileFromText'], dirSelectMode: ['byId'] } },
+				displayOptions: { show: { operation: ['copyFile', 'moveFile', 'createFileFromText', 'uploadFile'], dirSelectMode: ['byId'] } },
 			},
 
 			// SHARE DELETE inputs
@@ -491,7 +491,7 @@ export class TwakeDriveNode implements INodeType {
 				description: 'ID of the destination directory',
 				displayOptions: {
 					show: {
-						operation: ['uploadFile', 'createFolder', 'moveFolder'],
+						operation: ['createFolder', 'moveFolder'],
 						customDir: [true],
 					},
 				},
@@ -504,7 +504,7 @@ export class TwakeDriveNode implements INodeType {
 				description: 'ID of the targeted directory',
 				displayOptions: {
 					show: {
-						operation: ['uploadFile', 'deleteFolder'],
+						operation: ['deleteFolder'],
 					},
 				},
 			},

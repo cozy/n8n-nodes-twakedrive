@@ -171,10 +171,21 @@ export async function uploadFile(
 		instanceUrl: string;
 	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
-	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
+
+	const dirSelectMode = this.getNodeParameter('dirSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
+	const dirIdParam =
+		(
+			dirSelectMode === 'byId'
+				? (this.getNodeParameter('dirIdById', itemIndex, '') as string)
+				: (this.getNodeParameter('parentDirIdDest', itemIndex, '') as string)
+		).trim()
+		|| (this.getNodeParameter('dirId', itemIndex, '') as string).trim()
+		|| 'io.cozy.files.root-dir';
+
 	const binPropName = (this.getNodeParameter('binaryPropertyName', itemIndex, '') as string).trim();
 	const overwriteIfExists = this.getNodeParameter('overwriteIfExists', itemIndex, false) as boolean;
-	const targetDirId = dirId || 'io.cozy.files.root-dir';
+	const targetDirId = dirIdParam;
+
 	const items: INodeExecutionData[] = this.getInputData();
 	const binaries = items[itemIndex].binary || {};
 	const keys = Object.keys(binaries);
@@ -279,6 +290,7 @@ export async function uploadFile(
 
 	return;
 }
+
 
 export async function copyFile(
 	this: IExecuteFunctions,
