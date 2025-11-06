@@ -515,6 +515,16 @@ export class TwakeDriveNode implements INodeType {
 				},
 			},
 			{
+				displayName: 'Save as io.cozy.notes',
+				name: 'saveAsNote',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to Create a Cozy Note (io.cozy.notes) instead of a plain text file',
+				displayOptions: {
+					show: { operation: ['createFileFromText'] },
+				},
+			},
+			{
 				displayName: 'Name of the New File',
 				name: 'customName',
 				type: 'boolean',

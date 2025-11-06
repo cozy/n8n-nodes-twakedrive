@@ -291,7 +291,6 @@ export async function uploadFile(
 	return;
 }
 
-
 export async function copyFile(
 	this: IExecuteFunctions,
 	itemIndex: number,
@@ -443,9 +442,7 @@ export async function createFileFromText(
 ) {
 	const itemBag: Record<string, any> = {};
 
-	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
-		instanceUrl: string;
-	};
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as { instanceUrl: string };
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const dirSelectMode = this.getNodeParameter('dirSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
@@ -459,16 +456,19 @@ export async function createFileFromText(
 		'io.cozy.files.root-dir';
 
 	const textContent = this.getNodeParameter('textContent', itemIndex, '') as string;
+
 	const rawName = ((this.getNodeParameter('newName', itemIndex, '') as string) || 'untitled').trim();
 	const safeName = rawName.endsWith('.txt') ? rawName : `${rawName.replace(/\.[^./\\]+$/, '')}.txt`;
 
 	const overwriteIfExists = this.getNodeParameter('overwriteIfExists', itemIndex, false) as boolean;
+	const saveAsNote = this.getNodeParameter('saveAsNote', itemIndex, false) as boolean;
+	const noteTitle = (rawName || 'untitled').replace(/\.[^./\\]+$/, '');
 
 	const mimeType = 'text/plain; charset=utf-8';
 	const fileBuffer = Buffer.from(textContent ?? '', 'utf8');
 
 	let existingFileId: string | undefined;
-	if (overwriteIfExists) {
+	if (overwriteIfExists && !saveAsNote) {
 		const findBody = {
 			selector: {
 				dir_id: dirIdParam,
@@ -496,7 +496,26 @@ export async function createFileFromText(
 
 	let response: any;
 
-	if (overwriteIfExists && existingFileId) {
+	if (saveAsNote) {
+		const cozyNoteName = `${noteTitle}.cozy-note`;
+		const cozyNoteBuffer = Buffer.from(textContent ?? '', 'utf8');
+
+		response = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+			method: 'POST',
+			url: `${baseUrl}/files/${dirIdParam}`,
+			headers: {
+				Accept: 'application/vnd.api+json',
+				'Content-Type': mimeType, // text/plain utf-8
+			},
+			qs: { Name: cozyNoteName, Type: 'file' },
+			body: cozyNoteBuffer,
+			json: true,
+			timeout: 30000,
+		});
+
+		itemBag.overwrite = { used: false };
+		itemBag.filename = cozyNoteName;
+	} else if (overwriteIfExists && existingFileId) {
 		response = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 			method: 'PUT',
 			url: `${baseUrl}/files/${existingFileId}`,
@@ -509,6 +528,7 @@ export async function createFileFromText(
 			timeout: 30000,
 		});
 		itemBag.overwrite = { used: true, existingFileId };
+		itemBag.filename = safeName;
 	} else {
 		response = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 			method: 'POST',
@@ -523,6 +543,7 @@ export async function createFileFromText(
 			timeout: 30000,
 		});
 		itemBag.overwrite = { used: false };
+		itemBag.filename = safeName;
 	}
 
 	itemBag.createdFileId = response?.data?.id ?? response?.id;
@@ -537,7 +558,6 @@ export async function createFileFromText(
 		},
 	};
 }
-
 
 export async function moveFile(
 	this: IExecuteFunctions,
@@ -791,8 +811,6 @@ export async function updateFile(
 		},
 	};
 }
-
-
 
 export async function renameFile(
 	this: IExecuteFunctions,
