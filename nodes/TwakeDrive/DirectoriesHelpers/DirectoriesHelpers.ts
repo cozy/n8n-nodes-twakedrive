@@ -14,18 +14,17 @@ export async function createFolder(
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const dirName = this.getNodeParameter('dirName', itemIndex, '') as string;
-	const useCustomDir = this.getNodeParameter('customDir', itemIndex, false) as boolean; // <-- FIX
-	const targetDirId = useCustomDir
-		? (this.getNodeParameter('dirId', itemIndex, '') as string) || ''
-		: 'io.cozy.files.root-dir';
+	const dirSelectMode = this.getNodeParameter('dirSelectMode', itemIndex, 'dropdown') as string;
 
-	if (useCustomDir && !targetDirId) {
-		throw new NodeOperationError(
-			this.getNode(),
-			'Directory ID is required when "Choose Destination Folder" is enabled',
-			{ itemIndex },
-		);
+	const targetDirId =
+		dirSelectMode === 'byId'
+			? ((this.getNodeParameter('dirIdById', itemIndex, '') as string) || '')
+			: ((this.getNodeParameter('parentDirIdDest', itemIndex, '') as string) || 'io.cozy.files.root-dir');
+
+	if (!targetDirId) {
+		throw new NodeOperationError(this.getNode(), 'Destination directory is required', { itemIndex });
 	}
+
 
 	const url = `${baseUrl}/files/${encodeURIComponent(targetDirId)}`;
 	const qs: Record<string, string> = { Type: 'directory', Name: dirName };
@@ -122,19 +121,33 @@ export async function moveFolder(
 	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
-	const folderId = this.getNodeParameter('folderId', itemIndex, '') as string;
-	const useCustomDir = this.getNodeParameter('customDir', itemIndex, false) as boolean;
-	const destDirId = useCustomDir
-		? (this.getNodeParameter('dirId', itemIndex, '') as string) || ''
-		: 'io.cozy.files.root-dir';
+	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as string;
+	const folderId =
+		fileSelectMode === 'byId'
+			? ((this.getNodeParameter('sourceFolderIdById', itemIndex, '') as string) || '')
+			: ((this.getNodeParameter('parentDirIdFile', itemIndex, '') as string) || '');
+
+	const dirSelectMode = this.getNodeParameter('dirSelectMode', itemIndex, 'dropdown') as string;
+	const destDirId =
+		dirSelectMode === 'byId'
+			? ((this.getNodeParameter('dirIdById', itemIndex, '') as string) || '')
+			: ((this.getNodeParameter('parentDirIdDest', itemIndex, '') as string) || 'io.cozy.files.root-dir');
 
 	if (!folderId) {
 		throw new NodeOperationError(this.getNode(), 'Folder ID is required', { itemIndex });
 	}
 	if (!destDirId) {
-		throw new NodeOperationError(this.getNode(), 'Destination Directory ID is required', {
-			itemIndex,
-		});
+		throw new NodeOperationError(this.getNode(), 'Destination directory is required', { itemIndex });
+	}
+	if (folderId === 'io.cozy.files.root-dir') {
+		throw new NodeOperationError(this.getNode(), 'Cannot move root directory', { itemIndex });
+	}
+	if (folderId === destDirId) {
+		throw new NodeOperationError(
+			this.getNode(),
+			'Destination directory cannot be the same as the folder being moved',
+			{ itemIndex },
+		);
 	}
 
 	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
@@ -167,6 +180,7 @@ export async function moveFolder(
 		},
 	};
 }
+
 
 export async function renameFolder(
 	this: IExecuteFunctions,

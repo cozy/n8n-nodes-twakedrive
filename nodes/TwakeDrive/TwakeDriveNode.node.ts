@@ -264,10 +264,10 @@ export class TwakeDriveNode implements INodeType {
 					{ name: 'Dropdown (Browse)', value: 'dropdown' },
 					{ name: 'By ID (Manual)', value: 'byId' },
 				],
-				displayOptions: { show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile', 'updateFile'] } },
+				displayOptions: { show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile', 'updateFile', 'moveFolder'] } },
 			},
 			{
-				displayName: 'Parent Folder (Source) Name or ID',
+				displayName: 'Target Folder (Source) Name or ID',
 				name: 'parentDirIdFile',
 				type: 'options',
 				default: '',
@@ -278,7 +278,7 @@ export class TwakeDriveNode implements INodeType {
 					loadOptionsDependsOn: ['parentDirIdFile', 'fileSelectMode'],
 				},
 				displayOptions: {
-					show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile', 'updateFile'], fileSelectMode: ['dropdown'] },
+					show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile', 'updateFile', 'moveFolder'], fileSelectMode: ['dropdown'] },
 				},
 			},
 			{
@@ -305,6 +305,16 @@ export class TwakeDriveNode implements INodeType {
 				displayOptions: { show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile', 'updateFile'], fileSelectMode: ['byId'] } },
 			},
 			{
+				displayName: 'Source Folder ID (Manual)',
+				name: 'sourceFolderIdById',
+				type: 'string',
+				default: '',
+				placeholder: 'directory-ID',
+				displayOptions: {
+					show: { operation: ['moveFolder'], fileSelectMode: ['byId'] },
+				},
+			},
+			{
 				displayName: 'Destination Select Mode',
 				name: 'dirSelectMode',
 				type: 'options',
@@ -313,7 +323,7 @@ export class TwakeDriveNode implements INodeType {
 					{ name: 'Dropdown (Browse)', value: 'dropdown' },
 					{ name: 'By ID (Manual)', value: 'byId' },
 				],
-				displayOptions: { show: { operation: ['copyFile', 'moveFile', 'createFileFromText', 'uploadFile'] } },
+				displayOptions: { show: { operation: ['copyFile', 'moveFile', 'createFileFromText', 'uploadFile', 'createFolder', 'moveFolder'] } },
 			},
 			{
 				displayName: 'Parent Folder (Destination) Name or ID',
@@ -326,7 +336,7 @@ export class TwakeDriveNode implements INodeType {
 					loadOptionsMethod: 'loadFoldersByParentDest',
 					loadOptionsDependsOn: ['parentDirIdDest', 'dirSelectMode'],
 				},
-				displayOptions: { show: { operation: ['copyFile', 'moveFile', 'createFileFromText', 'uploadFile'], dirSelectMode: ['dropdown'] } },
+				displayOptions: { show: { operation: ['copyFile', 'moveFile', 'createFileFromText', 'uploadFile', 'createFolder', 'moveFolder'], dirSelectMode: ['dropdown'] } },
 			},
 			{
 				displayName: 'Destination Folder ID (Manual)',
@@ -334,7 +344,7 @@ export class TwakeDriveNode implements INodeType {
 				type: 'string',
 				default: '',
 				placeholder: 'directory-ID',
-				displayOptions: { show: { operation: ['copyFile', 'moveFile', 'createFileFromText', 'uploadFile'], dirSelectMode: ['byId'] } },
+				displayOptions: { show: { operation: ['copyFile', 'moveFile', 'createFileFromText', 'uploadFile', 'createFolder', 'moveFolder'], dirSelectMode: ['byId'] } },
 			},
 
 			// SHARE DELETE inputs
@@ -458,31 +468,6 @@ export class TwakeDriveNode implements INodeType {
 				displayOptions: { show: { operation: ['shareByLink'] } },
 			},
 			{
-				displayName: 'Choose Destination Folder',
-				name: 'customDir',
-				type: 'boolean',
-				description: 'Whether to choose a destination folder',
-				default: false,
-				displayOptions: {
-					show: {
-						operation: ['createFolder', 'moveFolder'],
-					},
-				},
-			},
-			{
-				displayName: 'Directory ID',
-				name: 'dirId',
-				type: 'string',
-				default: '',
-				description: 'ID of the destination directory',
-				displayOptions: {
-					show: {
-						operation: ['createFolder', 'moveFolder'],
-						customDir: [true],
-					},
-				},
-			},
-			{
 				displayName: 'Directory ID',
 				name: 'dirId',
 				type: 'string',
@@ -581,7 +566,7 @@ export class TwakeDriveNode implements INodeType {
 				description: 'ID of the folder to move or rename',
 				displayOptions: {
 					show: {
-						operation: ['moveFolder', 'renameFolder'],
+						operation: ['renameFolder'],
 					},
 				},
 			},
