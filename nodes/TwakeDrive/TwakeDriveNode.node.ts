@@ -202,18 +202,18 @@ export class TwakeDriveNode implements INodeType {
 				],
 			},
 			{
-				displayName: 'Target ID',
-				name: 'targetId',
-				type: 'string',
-				default: '',
-				description:
-					'ID of the targeted file or directory. If the target is a folder and value is left empty , root (io.cozy.files.root-dir) is used.',
-				displayOptions: {
-					show: {
-						operation: ['shareByLink'],
-					},
-				},
+				displayName: 'Target Type',
+				name: 'shareTargetType',
+				type: 'options',
+				default: 'folder',
+				options: [
+					{ name: 'Folder', value: 'folder' },
+					{ name: 'File', value: 'file' },
+				],
+				displayOptions: { show: { operation: ['shareByLink'] } },
+				description: 'Choose whether to share a file or a folder',
 			},
+
 			{
 				displayName: 'Parent Folder Name or ID',
 				name: 'parentDirId',
@@ -264,7 +264,7 @@ export class TwakeDriveNode implements INodeType {
 					{ name: 'Dropdown (Browse)', value: 'dropdown' },
 					{ name: 'By ID (Manual)', value: 'byId' },
 				],
-				displayOptions: { show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile', 'updateFile', 'moveFolder', 'deleteFolder', 'renameFolder'] } },
+				displayOptions: { show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile', 'updateFile', 'moveFolder', 'deleteFolder', 'renameFolder', 'shareByLink'] } },
 			},
 			{
 				displayName: 'Target Folder (Source) Name or ID',
@@ -278,7 +278,7 @@ export class TwakeDriveNode implements INodeType {
 					loadOptionsDependsOn: ['parentDirIdFile', 'fileSelectMode'],
 				},
 				displayOptions: {
-					show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile', 'updateFile', 'moveFolder', 'deleteFolder', 'renameFolder'], fileSelectMode: ['dropdown'] },
+					show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile', 'updateFile', 'moveFolder', 'deleteFolder', 'renameFolder', 'shareByLink'], fileSelectMode: ['dropdown'] },
 				},
 			},
 			{
@@ -297,12 +297,37 @@ export class TwakeDriveNode implements INodeType {
 				},
 			},
 			{
+				displayName: 'File (in This Folder) Name or ID',
+				name: 'fileIdFromDropdownShare',
+				type: 'options',
+				description:
+					'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+				default: '',
+				typeOptions: {
+					loadOptionsMethod: 'loadFilesByParent',
+					loadOptionsDependsOn: ['parentDirIdFile'],
+				},
+				displayOptions: {
+					show: { operation: ['shareByLink'], fileSelectMode: ['dropdown'], shareTargetType: ['file'] },
+				},
+			},
+			{
 				displayName: 'File ID (Manual)',
 				name: 'fileIdById',
 				type: 'string',
 				default: '',
 				placeholder: 'file-ID',
 				displayOptions: { show: { operation: ['copyFile', 'deleteFile', 'moveFile', 'renameFile', 'updateFile'], fileSelectMode: ['byId'] } },
+			},
+			{
+				displayName: 'File ID (Manual)',
+				name: 'fileIdByIdShare',
+				type: 'string',
+				default: '',
+				placeholder: 'file-ID',
+				displayOptions: {
+					show: { operation: ['shareByLink'], fileSelectMode: ['byId'], shareTargetType: ['file'] },
+				},
 			},
 			{
 				displayName: 'Source Folder ID (Manual)',
@@ -312,6 +337,16 @@ export class TwakeDriveNode implements INodeType {
 				placeholder: 'directory-ID',
 				displayOptions: {
 					show: { operation: ['moveFolder', 'deleteFolder', 'renameFolder'], fileSelectMode: ['byId'] },
+				},
+			},
+			{
+				displayName: 'Source Folder ID (Manual)',
+				name: 'sourceFolderIdByIdShare',
+				type: 'string',
+				default: '',
+				placeholder: 'directory-ID',
+				displayOptions: {
+					show: { operation: ['shareByLink'], fileSelectMode: ['byId'], shareTargetType: ['folder'] },
 				},
 			},
 			{

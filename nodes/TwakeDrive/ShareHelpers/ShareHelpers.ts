@@ -32,12 +32,36 @@ export async function shareByLink(
 ) {
 	const itemBag: Record<string, any> = {};
 
-	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
-		instanceUrl: string;
-	};
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as { instanceUrl: string };
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
-	const id = this.getNodeParameter('targetId', itemIndex, '') as string;
+	const shareTargetType = this.getNodeParameter('shareTargetType', itemIndex, 'folder') as string;
+	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as string;
+
+	let id = '';
+	if (fileSelectMode === 'byId') {
+		if (shareTargetType === 'file') {
+			id =
+				((this.getNodeParameter('fileIdByIdShare', itemIndex, '') as string) || '').trim() ||
+				((this.getNodeParameter('fileIdById', itemIndex, '') as string) || '').trim();
+		} else {
+			id =
+				((this.getNodeParameter('sourceFolderIdByIdShare', itemIndex, '') as string) || '').trim() ||
+				((this.getNodeParameter('sourceFolderIdById', itemIndex, '') as string) || '').trim() ||
+				'io.cozy.files.root-dir';
+		}
+	} else {
+		if (shareTargetType === 'file') {
+			id =
+				((this.getNodeParameter('fileIdFromDropdownShare', itemIndex, '') as string) || '').trim() ||
+				((this.getNodeParameter('fileIdFromDropdown', itemIndex, '') as string) || '').trim();
+		} else {
+			id =
+				((this.getNodeParameter('parentDirIdFile', itemIndex, '') as string) || '').trim() ||
+				'io.cozy.files.root-dir';
+		}
+	}
+
 	if (!id) {
 		throw new NodeOperationError(this.getNode(), 'File or Directory ID is required', { itemIndex });
 	}
@@ -56,9 +80,7 @@ export async function shareByLink(
 	if (codesCsv) qs.codes = codesCsv;
 	if (useTtl) {
 		if (!amount || !unit) {
-			throw new NodeOperationError(this.getNode(), 'Duration amount and unit are required', {
-				itemIndex,
-			});
+			throw new NodeOperationError(this.getNode(), 'Duration amount and unit are required', { itemIndex });
 		}
 		qs.ttl = `${amount}${unit}`;
 	}
