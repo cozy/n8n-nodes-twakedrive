@@ -75,9 +75,17 @@ export async function deleteFolder(
 	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
-	const dirId = this.getNodeParameter('dirId', itemIndex, '') as string;
+	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as string;
+	const dirId =
+		fileSelectMode === 'byId'
+			? ((this.getNodeParameter('sourceFolderIdById', itemIndex, '') as string) || '')
+			: ((this.getNodeParameter('parentDirIdFile', itemIndex, '') as string) || '');
+
 	if (!dirId) {
 		throw new NodeOperationError(this.getNode(), 'Directory ID is required', { itemIndex });
+	}
+	if (dirId === 'io.cozy.files.root-dir') {
+		throw new NodeOperationError(this.getNode(), 'Cannot delete root directory', { itemIndex });
 	}
 
 	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
@@ -181,7 +189,6 @@ export async function moveFolder(
 	};
 }
 
-
 export async function renameFolder(
 	this: IExecuteFunctions,
 	itemIndex: number,
@@ -194,11 +201,19 @@ export async function renameFolder(
 	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
-	const folderId = this.getNodeParameter('folderId', itemIndex, '') as string;
+	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as string;
+	const folderId =
+		fileSelectMode === 'byId'
+			? ((this.getNodeParameter('sourceFolderIdById', itemIndex, '') as string) || '')
+			: ((this.getNodeParameter('parentDirIdFile', itemIndex, '') as string) || '');
+
 	const newFolderName = this.getNodeParameter('newFolderName', itemIndex, '') as string;
 
 	if (!folderId) {
 		throw new NodeOperationError(this.getNode(), 'Folder ID is required', { itemIndex });
+	}
+	if (folderId === 'io.cozy.files.root-dir') {
+		throw new NodeOperationError(this.getNode(), 'Cannot rename root directory', { itemIndex });
 	}
 	if (!newFolderName?.trim()) {
 		throw new NodeOperationError(this.getNode(), 'New Folder Name is required', { itemIndex });
