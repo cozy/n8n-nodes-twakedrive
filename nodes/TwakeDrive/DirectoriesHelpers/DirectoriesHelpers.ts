@@ -4,17 +4,13 @@ import { NodeOperationError } from 'n8n-workflow';
 export async function createFolder(
 	this: IExecuteFunctions,
 	itemIndex: number,
-	ezlog: (name: string, value: any) => void,
+	_ezlog: (name: string, value: any) => void,
 ) {
-	const itemBag: Record<string, any> = {};
-
-	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
-		instanceUrl: string;
-	};
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as { instanceUrl: string };
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const dirName = this.getNodeParameter('dirName', itemIndex, '') as string;
-	const dirSelectMode = this.getNodeParameter('dirSelectMode', itemIndex, 'dropdown') as string;
+	const dirSelectMode = this.getNodeParameter('dirSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
 
 	const targetDirId =
 		dirSelectMode === 'byId'
@@ -25,65 +21,38 @@ export async function createFolder(
 		throw new NodeOperationError(this.getNode(), 'Destination directory is required', { itemIndex });
 	}
 
-
-	const url = `${baseUrl}/files/${encodeURIComponent(targetDirId)}`;
-	const qs: Record<string, string> = { Type: 'directory', Name: dirName };
-
 	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 		method: 'POST',
-		url,
-		qs,
-		headers: {
-			Accept: 'application/vnd.api+json',
-			'Content-Type': 'application/json',
-		},
-		json: true,
-	});
+	  url: `${baseUrl}/files/${encodeURIComponent(targetDirId)}`,
+	  qs: { Type: 'directory', Name: dirName },
+	  headers: { Accept: 'application/vnd.api+json', 'Content-Type': 'application/json' },
+	  json: true,
+  });
 
 	const res = typeof resRaw === 'string' ? JSON.parse(resRaw) : resRaw;
 
-	const createdFolderId = res?.data?.id ?? res?.id;
-	if (!createdFolderId) {
-		throw new NodeOperationError(this.getNode(), 'Missing created folder id in response', {
-			itemIndex,
-		});
-	}
+	const items = this.getInputData();
+	if (!items[itemIndex]) items[itemIndex] = { json: {} };
+	items[itemIndex].json = res;
 
-	itemBag.createdFolderId = createdFolderId;
-	itemBag.createdFolderParent = targetDirId;
-	itemBag.createdFolder = res?.data ?? res;
-	ezlog('createFolder', itemBag);
-
-	return {
-		createFolder: {
-			parentDirId: targetDirId,
-			createdFolderId,
-			folder: res,
-		},
-	};
+	return;
 }
 
 export async function deleteFolder(
 	this: IExecuteFunctions,
 	itemIndex: number,
-	ezlog: (name: string, value: any) => void,
+	_ezlog: (name: string, value: any) => void,
 ) {
-	const itemBag: Record<string, any> = {};
-
-	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
-		instanceUrl: string;
-	};
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as { instanceUrl: string };
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
-	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as string;
+	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
 	const dirId =
 		fileSelectMode === 'byId'
 			? ((this.getNodeParameter('sourceFolderIdById', itemIndex, '') as string) || '')
 			: ((this.getNodeParameter('parentDirIdFile', itemIndex, '') as string) || '');
 
-	if (!dirId) {
-		throw new NodeOperationError(this.getNode(), 'Directory ID is required', { itemIndex });
-	}
+	if (!dirId) throw new NodeOperationError(this.getNode(), 'Directory ID is required', { itemIndex });
 	if (dirId === 'io.cozy.files.root-dir') {
 		throw new NodeOperationError(this.getNode(), 'Cannot delete root directory', { itemIndex });
 	}
@@ -91,12 +60,9 @@ export async function deleteFolder(
 	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 		method: 'DELETE',
 		url: `${baseUrl}/files/${encodeURIComponent(dirId)}`,
-		headers: {
-			Accept: 'application/vnd.api+json',
-			'Content-Type': 'application/json',
-		},
-		json: true,
-	});
+	  headers: { Accept: 'application/vnd.api+json', 'Content-Type': 'application/json' },
+	  json: true,
+  });
 
 	const res =
 		typeof resRaw === 'string'
@@ -105,48 +71,35 @@ export async function deleteFolder(
 				: null
 			: (resRaw ?? null);
 
-	itemBag.deletedFolderId = dirId;
-	itemBag.response = res;
-	ezlog('deleteFolder', itemBag);
+	const items = this.getInputData();
+	if (!items[itemIndex]) items[itemIndex] = { json: {} };
+	items[itemIndex].json = res;
 
-	return {
-		deleteFolder: {
-			deletedFolderId: dirId,
-			response: res,
-		},
-	};
+	return;
 }
 
 export async function moveFolder(
 	this: IExecuteFunctions,
 	itemIndex: number,
-	ezlog: (name: string, value: any) => void,
+	_ezlog: (name: string, value: any) => void,
 ) {
-	const itemBag: Record<string, any> = {};
-
-	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
-		instanceUrl: string;
-	};
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as { instanceUrl: string };
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
-	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as string;
+	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
 	const folderId =
 		fileSelectMode === 'byId'
 			? ((this.getNodeParameter('sourceFolderIdById', itemIndex, '') as string) || '')
 			: ((this.getNodeParameter('parentDirIdFile', itemIndex, '') as string) || '');
 
-	const dirSelectMode = this.getNodeParameter('dirSelectMode', itemIndex, 'dropdown') as string;
+	const dirSelectMode = this.getNodeParameter('dirSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
 	const destDirId =
 		dirSelectMode === 'byId'
 			? ((this.getNodeParameter('dirIdById', itemIndex, '') as string) || '')
 			: ((this.getNodeParameter('parentDirIdDest', itemIndex, '') as string) || 'io.cozy.files.root-dir');
 
-	if (!folderId) {
-		throw new NodeOperationError(this.getNode(), 'Folder ID is required', { itemIndex });
-	}
-	if (!destDirId) {
-		throw new NodeOperationError(this.getNode(), 'Destination directory is required', { itemIndex });
-	}
+	if (!folderId) throw new NodeOperationError(this.getNode(), 'Folder ID is required', { itemIndex });
+	if (!destDirId) throw new NodeOperationError(this.getNode(), 'Destination directory is required', { itemIndex });
 	if (folderId === 'io.cozy.files.root-dir') {
 		throw new NodeOperationError(this.getNode(), 'Cannot move root directory', { itemIndex });
 	}
@@ -161,47 +114,29 @@ export async function moveFolder(
 	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 		method: 'PATCH',
 		url: `${baseUrl}/files/${encodeURIComponent(folderId)}`,
-		headers: {
-			Accept: 'application/vnd.api+json',
-			'Content-Type': 'application/vnd.api+json',
-		},
-		body: {
-			data: {
-				attributes: { dir_id: destDirId },
-			},
-		},
-		json: true,
-	});
+	  headers: { Accept: 'application/vnd.api+json', 'Content-Type': 'application/vnd.api+json' },
+	  body: { data: { attributes: { dir_id: destDirId } } },
+	  json: true,
+  });
 
 	const res = typeof resRaw === 'string' ? JSON.parse(resRaw) : resRaw;
 
-	itemBag.movedFolderId = folderId;
-	itemBag.destinationFolderId = destDirId;
-	itemBag.folder = res;
-	ezlog('moveFolder', itemBag);
+	const items = this.getInputData();
+	if (!items[itemIndex]) items[itemIndex] = { json: {} };
+	items[itemIndex].json = res;
 
-	return {
-		moveFolder: {
-			folderId,
-			destinationDirId: destDirId,
-			movedFolder: res,
-		},
-	};
+	return;
 }
 
 export async function renameFolder(
 	this: IExecuteFunctions,
 	itemIndex: number,
-	ezlog: (name: string, value: any) => void,
+	_ezlog: (name: string, value: any) => void,
 ) {
-	const itemBag: Record<string, any> = {};
-
-	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
-		instanceUrl: string;
-	};
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as { instanceUrl: string };
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
-	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as string;
+	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
 	const folderId =
 		fileSelectMode === 'byId'
 			? ((this.getNodeParameter('sourceFolderIdById', itemIndex, '') as string) || '')
@@ -209,9 +144,7 @@ export async function renameFolder(
 
 	const newFolderName = this.getNodeParameter('newFolderName', itemIndex, '') as string;
 
-	if (!folderId) {
-		throw new NodeOperationError(this.getNode(), 'Folder ID is required', { itemIndex });
-	}
+	if (!folderId) throw new NodeOperationError(this.getNode(), 'Folder ID is required', { itemIndex });
 	if (folderId === 'io.cozy.files.root-dir') {
 		throw new NodeOperationError(this.getNode(), 'Cannot rename root directory', { itemIndex });
 	}
@@ -222,32 +155,16 @@ export async function renameFolder(
 	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 		method: 'PATCH',
 		url: `${baseUrl}/files/${encodeURIComponent(folderId)}`,
-		headers: {
-			Accept: 'application/vnd.api+json',
-			'Content-Type': 'application/vnd.api+json',
-		},
-		body: {
-			data: {
-				type: 'io.cozy.files',
-				id: folderId,
-				attributes: { name: newFolderName },
-			},
-		},
-		json: true,
-	});
+	  headers: { Accept: 'application/vnd.api+json', 'Content-Type': 'application/vnd.api+json' },
+	  body: { data: { type: 'io.cozy.files', id: folderId, attributes: { name: newFolderName } } },
+	  json: true,
+  });
 
 	const res = typeof resRaw === 'string' ? JSON.parse(resRaw) : resRaw;
 
-	itemBag.renamedFolderId = folderId;
-	itemBag.renamedFolderNewName = newFolderName;
-	itemBag.folder = res;
-	ezlog('renameFolder', itemBag);
+	const items = this.getInputData();
+	if (!items[itemIndex]) items[itemIndex] = { json: {} };
+	items[itemIndex].json = res;
 
-	return {
-		renameFolder: {
-			folderId,
-			newName: newFolderName,
-			folder: res,
-		},
-	};
+	return;
 }

@@ -1195,26 +1195,30 @@ export class TwakeDriveNode implements INodeType {
 					// DIRECTORIES OPERATIONS //
 					////////////////////////////
 					case 'createFolder': {
-						const out = await TwakeDirectoriesHelpers.createFolder.call(this, itemIndex, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeDirectoriesHelpers.createFolder.call(this, itemIndex, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]); // forward item with binary
 						break;
 					}
 
 					case 'deleteFolder': {
-						const out = await TwakeDirectoriesHelpers.deleteFolder.call(this, itemIndex, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeDirectoriesHelpers.deleteFolder.call(this, itemIndex, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]); // forward item with binary
 						break;
 					}
 
 					case 'moveFolder': {
-						const out = await TwakeDirectoriesHelpers.moveFolder.call(this, itemIndex, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeDirectoriesHelpers.moveFolder.call(this, itemIndex, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]); // forward item with binary
 						break;
 					}
 
 					case 'renameFolder': {
-						const out = await TwakeDirectoriesHelpers.renameFolder.call(this, itemIndex, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeDirectoriesHelpers.renameFolder.call(this, itemIndex, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]); // forward item with binary
 						break;
 					}
 
