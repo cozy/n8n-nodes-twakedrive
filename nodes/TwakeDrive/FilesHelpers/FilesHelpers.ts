@@ -464,15 +464,21 @@ export async function createFileFromText(
 	const saveAsNote = this.getNodeParameter('saveAsNote', itemIndex, false) as boolean;
 	const noteTitle = (rawName || 'untitled').replace(/\.[^./\\]+$/, '');
 
+	const targetName = saveAsNote ? `${noteTitle}.cozy-note` : safeName;
+
 	const mimeType = 'text/plain; charset=utf-8';
-	const fileBuffer = Buffer.from(textContent ?? '', 'utf8');
+	const payloadBuffer = Buffer.from(textContent ?? '', 'utf8');
+
+	itemBag.destinationDirId = dirIdParam;
+	itemBag.filename = targetName;
+	itemBag.textContentLength = textContent?.length ?? 0;
 
 	let existingFileId: string | undefined;
-	if (overwriteIfExists && !saveAsNote) {
+	if (overwriteIfExists) {
 		const findBody = {
 			selector: {
 				dir_id: dirIdParam,
-				name: safeName,
+				name: targetName,
 				type: 'file',
 				trashed: false,
 			},
@@ -490,32 +496,9 @@ export async function createFileFromText(
 		existingFileId = arr[0]?.id;
 	}
 
-	itemBag.destinationDirId = dirIdParam;
-	itemBag.filename = safeName;
-	itemBag.textContentLength = textContent?.length ?? 0;
-
 	let response: any;
 
-	if (saveAsNote) {
-		const cozyNoteName = `${noteTitle}.cozy-note`;
-		const cozyNoteBuffer = Buffer.from(textContent ?? '', 'utf8');
-
-		response = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
-			method: 'POST',
-			url: `${baseUrl}/files/${dirIdParam}`,
-			headers: {
-				Accept: 'application/vnd.api+json',
-				'Content-Type': mimeType, // text/plain utf-8
-			},
-			qs: { Name: cozyNoteName, Type: 'file' },
-			body: cozyNoteBuffer,
-			json: true,
-			timeout: 30000,
-		});
-
-		itemBag.overwrite = { used: false };
-		itemBag.filename = cozyNoteName;
-	} else if (overwriteIfExists && existingFileId) {
+	if (overwriteIfExists && existingFileId) {
 		response = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 			method: 'PUT',
 			url: `${baseUrl}/files/${existingFileId}`,
@@ -523,12 +506,11 @@ export async function createFileFromText(
 				Accept: 'application/vnd.api+json',
 				'Content-Type': mimeType,
 			},
-			body: fileBuffer,
+			body: payloadBuffer,
 			json: true,
 			timeout: 30000,
 		});
 		itemBag.overwrite = { used: true, existingFileId };
-		itemBag.filename = safeName;
 	} else {
 		response = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 			method: 'POST',
@@ -537,13 +519,12 @@ export async function createFileFromText(
 				Accept: 'application/vnd.api+json',
 				'Content-Type': mimeType,
 			},
-			qs: { Name: safeName, Type: 'file' },
-			body: fileBuffer,
+			qs: { Name: targetName, Type: 'file' },
+			body: payloadBuffer,
 			json: true,
 			timeout: 30000,
 		});
 		itemBag.overwrite = { used: false };
-		itemBag.filename = safeName;
 	}
 
 	itemBag.createdFileId = response?.data?.id ?? response?.id;
