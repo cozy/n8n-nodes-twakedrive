@@ -156,17 +156,15 @@ export async function getFileFolder(
 		if (!cursor) break;
 	}
 
-	itemsOut[itemIndex].json = { data: wantedFilesArray }; // JSON-API exact (tableau)
-	ezlog('getFolder', { dirId: listDirId, total: wantedFilesArray.length });
+	itemsOut[itemIndex].json = { data: wantedFilesArray };
 	return;
 }
 
 export async function uploadFile(
 	this: IExecuteFunctions,
 	itemIndex: number,
-	ezlog: (name: string, value: any) => void,
+	_ezlog: (name: string, value: any) => void,
 ) {
-	const logBag: Record<string, any> = {};
 	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
 		instanceUrl: string;
 	};
@@ -187,10 +185,10 @@ export async function uploadFile(
 	const targetDirId = dirIdParam;
 
 	const items: INodeExecutionData[] = this.getInputData();
+	if (!items[itemIndex]) items[itemIndex] = { json: {} };
+
 	const binaries = items[itemIndex].binary || {};
 	const keys = Object.keys(binaries);
-
-	logBag.dirId = targetDirId;
 
 	let chosenKey: string | undefined;
 	if (binPropName && binaries[binPropName]) chosenKey = binPropName;
@@ -213,9 +211,6 @@ export async function uploadFile(
 	const fileName = bin.fileName as string;
 	const mimeType = (bin.mimeType as string) || 'application/octet-stream';
 	const fileBuffer = Buffer.from(bin.data as string, 'base64');
-
-	logBag.binaryPropertyName = chosenKey;
-	logBag.fileName = fileName;
 
 	let existingFileId: string | undefined;
 	if (overwriteIfExists) {
@@ -256,7 +251,6 @@ export async function uploadFile(
 			json: true,
 			timeout: 30000,
 		});
-		logBag.overwrite = { used: true, existingFileId };
 	} else {
 		response = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 			method: 'POST',
@@ -270,21 +264,11 @@ export async function uploadFile(
 			json: true,
 			timeout: 30000,
 		});
-		logBag.overwrite = { used: false };
 	}
 
-	logBag.fileId = response?.data?.id ?? response?.id;
-	logBag.file = response;
-	ezlog('uploadFile', logBag);
-
-	if (!items[itemIndex]) items[itemIndex] = { json: {} };
-	const srcItem = items[itemIndex];
-
-	srcItem.json = srcItem.json || {};
-	(srcItem.json as any).uploadFile = { dirId: logBag.dirId, file: response };
-
-	srcItem.binary = {
-		...(srcItem.binary || {}),
+	items[itemIndex].json = response;
+	items[itemIndex].binary = {
+		...(items[itemIndex].binary || {}),
 		[chosenKey!]: bin,
 	};
 
@@ -294,23 +278,24 @@ export async function uploadFile(
 export async function copyFile(
 	this: IExecuteFunctions,
 	itemIndex: number,
-	ezlog: (name: string, value: any) => void,
+	_ezlog: (name: string, value: any) => void,
 ) {
-	const itemBag: Record<string, any> = {};
-
 	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
 		instanceUrl: string;
 	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
-	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as
-		| 'dropdown'
-		| 'byId';
+	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
 	const fileIdParam =
 		fileSelectMode === 'byId'
 			? (this.getNodeParameter('fileIdById', itemIndex, '') as string)
 			: (this.getNodeParameter('fileIdFromDropdown', itemIndex, '') as string);
 	const fileId = (fileIdParam || (this.getNodeParameter('fileId', itemIndex, '') as string)).trim();
+
+	if (!fileId) {
+		throw new NodeOperationError(this.getNode(), 'copyFile - Missing source file ID', { itemIndex });
+	}
+
 	const metaResp = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 		method: 'GET',
 		baseURL: baseUrl,
@@ -325,20 +310,11 @@ export async function copyFile(
 			? `.${srcName.split('.').pop()}`
 			: '';
 
-	if (!fileId) {
-		throw new NodeOperationError(this.getNode(), 'copyFile - Missing source file ID', {
-			itemIndex,
-		});
-	}
-
-	const dirSelectMode = this.getNodeParameter('dirSelectMode', itemIndex, 'dropdown') as
-		| 'dropdown'
-		| 'byId';
+	const dirSelectMode = this.getNodeParameter('dirSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
 	const dirIdParam =
 		dirSelectMode === 'byId'
 			? (this.getNodeParameter('dirIdById', itemIndex, '') as string)
 			: (this.getNodeParameter('parentDirIdDest', itemIndex, '') as string);
-
 	const dirId = (dirIdParam || '').trim();
 
 	const wantsCustomName = this.getNodeParameter('customName', itemIndex, false) as boolean;
@@ -349,53 +325,34 @@ export async function copyFile(
 		newName = `${base}${srcExt}`;
 	}
 
-
-	const targetDirId = dirId || 'io.cozy.files.root-dir';
 	const qs: Record<string, string> = {};
-
-	itemBag.fileId = fileId;
-	itemBag.fileSelectMode = fileSelectMode;
-	itemBag.dirSelectMode = dirSelectMode;
-	itemBag.dirId = targetDirId;
-	itemBag.customName = wantsCustomName ? newName : null;
-
 	if (dirId) qs.DirID = dirId;
 	if (newName) qs.Name = newName;
 
-	const copiedFile = await this.helpers.requestWithAuthentication.call(
-		this,
-		'twakeDriveOAuth2Api',
-		{
-			method: 'POST',
-			url: `${baseUrl}/files/${encodeURIComponent(fileId)}/copy`,
-			headers: {
-				Accept: 'application/vnd.api+json',
-				'Content-Type': 'application/json',
-			},
-			qs,
-			json: true,
+	const copiedFile = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+		method: 'POST',
+		url: `${baseUrl}/files/${encodeURIComponent(fileId)}/copy`,
+		headers: {
+			Accept: 'application/vnd.api+json',
+			'Content-Type': 'application/json',
 		},
-	);
+		qs,
+		json: true,
+	});
 
-	itemBag.copyId = copiedFile?.data?.id ?? copiedFile?.id;
-	itemBag.file = copiedFile;
-	ezlog('copyFile', itemBag);
+	const items: INodeExecutionData[] = this.getInputData();
+	if (!items[itemIndex]) items[itemIndex] = { json: {} };
+	items[itemIndex].json = copiedFile;
 
-	return {
-		copyFile: { dirId: itemBag.dirId, file: copiedFile },
-	};
+	return;
 }
 
 export async function deleteFile(
 	this: IExecuteFunctions,
 	itemIndex: number,
-	ezlog: (name: string, value: any) => void,
+	_ezlog: (name: string, value: any) => void,
 ) {
-	const itemBag: Record<string, any> = {};
-
-	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
-		instanceUrl: string;
-	};
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as { instanceUrl: string };
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
@@ -404,10 +361,10 @@ export async function deleteFile(
 			? (this.getNodeParameter('fileIdById', itemIndex, '') as string)
 			: (this.getNodeParameter('fileIdFromDropdown', itemIndex, '') as string);
 	const fileId = (fileIdParam || (this.getNodeParameter('targetId', itemIndex, '') as string)).trim();
+
 	if (!fileId) {
 		throw new NodeOperationError(this.getNode(), 'deleteFile - Missing file ID', { itemIndex });
 	}
-
 
 	const deletedFileResponse = await this.helpers.requestWithAuthentication.call(
 		this,
@@ -423,25 +380,18 @@ export async function deleteFile(
 		},
 	);
 
-	itemBag.deletedFileId = deletedFileResponse?.data?.id ?? deletedFileResponse?.id ?? fileId;
-	itemBag.deletedFile = deletedFileResponse;
-	ezlog('deleteFile', itemBag);
+	const items: INodeExecutionData[] = this.getInputData();
+	if (!items[itemIndex]) items[itemIndex] = { json: {} };
+	items[itemIndex].json = deletedFileResponse;
 
-	return {
-		deleteFile: {
-			deletedFileId: itemBag.deletedFileId,
-			deletedFile: deletedFileResponse,
-		},
-	};
+	return;
 }
 
 export async function createFileFromText(
 	this: IExecuteFunctions,
 	itemIndex: number,
-	ezlog: (name: string, value: any) => void,
+	_ezlog: (name: string, value: any) => void,
 ) {
-	const itemBag: Record<string, any> = {};
-
 	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as { instanceUrl: string };
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
@@ -463,96 +413,66 @@ export async function createFileFromText(
 	const overwriteIfExists = this.getNodeParameter('overwriteIfExists', itemIndex, false) as boolean;
 	const saveAsNote = this.getNodeParameter('saveAsNote', itemIndex, false) as boolean;
 	const noteTitle = (rawName || 'untitled').replace(/\.[^./\\]+$/, '');
-
 	const targetName = saveAsNote ? `${noteTitle}.cozy-note` : safeName;
 
 	const mimeType = 'text/plain; charset=utf-8';
 	const payloadBuffer = Buffer.from(textContent ?? '', 'utf8');
 
-	itemBag.destinationDirId = dirIdParam;
-	itemBag.filename = targetName;
-	itemBag.textContentLength = textContent?.length ?? 0;
-
 	let existingFileId: string | undefined;
 	if (overwriteIfExists) {
 		const findBody = {
-			selector: {
-				dir_id: dirIdParam,
-				name: targetName,
-				type: 'file',
-				trashed: false,
-			},
-			limit: 1,
-		};
-
+		  selector: { dir_id: dirIdParam, name: targetName, type: 'file', trashed: false },
+		  limit: 1,
+	  };
 		const findResp = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 			method: 'POST',
 			url: `${baseUrl}/files/_find`,
 			body: findBody,
 			json: true,
 		});
-
 		const arr = Array.isArray(findResp?.data) ? findResp.data : [];
 		existingFileId = arr[0]?.id;
 	}
 
 	let response: any;
-
 	if (overwriteIfExists && existingFileId) {
 		response = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 			method: 'PUT',
 			url: `${baseUrl}/files/${existingFileId}`,
-			headers: {
-				Accept: 'application/vnd.api+json',
-				'Content-Type': mimeType,
-			},
-			body: payloadBuffer,
-			json: true,
-			timeout: 30000,
-		});
-		itemBag.overwrite = { used: true, existingFileId };
+		  headers: { Accept: 'application/vnd.api+json', 'Content-Type': mimeType },
+		  body: payloadBuffer,
+		  json: true,
+		  timeout: 30000,
+	  });
 	} else {
 		response = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 			method: 'POST',
 			url: `${baseUrl}/files/${dirIdParam}`,
-			headers: {
-				Accept: 'application/vnd.api+json',
-				'Content-Type': mimeType,
-			},
-			qs: { Name: targetName, Type: 'file' },
-			body: payloadBuffer,
-			json: true,
-			timeout: 30000,
-		});
-		itemBag.overwrite = { used: false };
+		  headers: { Accept: 'application/vnd.api+json', 'Content-Type': mimeType },
+		  qs: { Name: targetName, Type: 'file' },
+		  body: payloadBuffer,
+		  json: true,
+		  timeout: 30000,
+	  });
 	}
 
-	itemBag.createdFileId = response?.data?.id ?? response?.id;
-	itemBag.createdFile = response;
-	ezlog('createFileFromText', itemBag);
+	const items: INodeExecutionData[] = this.getInputData();
+	if (!items[itemIndex]) items[itemIndex] = { json: {} };
+	items[itemIndex].json = response;
 
-	return {
-		createFileFromText: {
-			dirId: dirIdParam,
-			createdFileId: itemBag.createdFileId,
-			file: response,
-		},
-	};
+	return;
 }
 
 export async function moveFile(
 	this: IExecuteFunctions,
 	itemIndex: number,
-	ezlog: (name: string, value: any) => void,
+	_ezlog: (name: string, value: any) => void,
 ) {
-	const itemBag: Record<string, any> = {};
-
 	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
 		instanceUrl: string;
 	};
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
-	// source file
 	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
 	const fileIdParam =
 		fileSelectMode === 'byId'
@@ -563,7 +483,6 @@ export async function moveFile(
 		throw new NodeOperationError(this.getNode(), 'moveFile - Missing source file ID', { itemIndex });
 	}
 
-	// destination folder
 	const dirSelectMode = this.getNodeParameter('dirSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
 	const dirIdParam =
 		dirSelectMode === 'byId'
@@ -581,9 +500,7 @@ export async function moveFile(
 				Accept: 'application/vnd.api+json',
 				'Content-Type': 'application/vnd.api+json',
 			},
-			body: {
-				data: { attributes: { dir_id: dirId } },
-			},
+			body: { data: { attributes: { dir_id: dirId } } },
 			json: true,
 		},
 	);
@@ -591,32 +508,20 @@ export async function moveFile(
 	const movedFileResponse =
 		typeof movedFileResponseRaw === 'string' ? JSON.parse(movedFileResponseRaw) : movedFileResponseRaw;
 
+	const items: INodeExecutionData[] = this.getInputData();
+	if (!items[itemIndex]) items[itemIndex] = { json: {} };
+	items[itemIndex].json = movedFileResponse;
 
-	itemBag.destinationDirId = dirIdParam;
-	itemBag.movedFileId = movedFileResponse?.data?.id ?? movedFileResponse?.id ?? fileId;
-	itemBag.movedFile = movedFileResponse;
-	ezlog('moveFile', itemBag);
-
-	return {
-		moveFile: {
-			fileId,
-			dirId: dirIdParam,
-			file: movedFileResponse,
-		},
-	};
+	return;
 }
 
 export async function updateFile(
 	this: IExecuteFunctions,
 	itemIndex: number,
 	items: INodeExecutionData[],
-	ezlog: (name: string, value: any) => void,
+	_ezlog: (name: string, value: any) => void,
 ) {
-	const itemBag: Record<string, any> = {};
-
-	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
-		instanceUrl: string;
-	};
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as { instanceUrl: string };
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
@@ -624,28 +529,19 @@ export async function updateFile(
 		fileSelectMode === 'byId'
 			? (this.getNodeParameter('fileIdById', itemIndex, '') as string)
 			: (this.getNodeParameter('fileIdFromDropdown', itemIndex, '') as string);
-
 	const fileId = (fileIdParam || (this.getNodeParameter('fileId', itemIndex, '') as string)).trim();
 
-	const binPropName =
-		(this.getNodeParameter('binaryPropertyName', itemIndex, 'data') as string) || 'data';
-	const binaryData = items[itemIndex].binary?.[binPropName];
+	const binPropName = (this.getNodeParameter('binaryPropertyName', itemIndex, 'data') as string) || 'data';
+	const binaryData = items[itemIndex]?.binary?.[binPropName];
 
-	if (!fileId) {
-		throw new NodeOperationError(this.getNode(), 'UpdateFile - Missing file ID', { itemIndex });
-	}
-	if (!binaryData) {
-		throw new NodeOperationError(
-			this.getNode(),
-			`UpdateFile - Binary data not found in "${binPropName}"`,
-			{ itemIndex },
-		);
-	}
+	if (!fileId) throw new NodeOperationError(this.getNode(), 'UpdateFile - Missing file ID', { itemIndex });
+	if (!binaryData)
+		throw new NodeOperationError(this.getNode(), `UpdateFile - Binary data not found in "${binPropName}"`, {
+			itemIndex,
+		});
 
 	const wantsCustomName = this.getNodeParameter('customName', itemIndex) as boolean;
-	const newNameInput = wantsCustomName
-		? String(this.getNodeParameter('newName', itemIndex) ?? '').trim()
-		: '';
+	const newNameInput = wantsCustomName ? String(this.getNodeParameter('newName', itemIndex) ?? '').trim() : '';
 
 	let currentName = '';
 	let finalName = '';
@@ -659,7 +555,6 @@ export async function updateFile(
 			json: true,
 		} as any);
 		currentName = String((metaResp as any)?.data?.attributes?.name ?? '');
-
 		const srcExt =
 			currentName && currentName.includes('.') && !currentName.startsWith('.')
 				? `.${currentName.split('.').pop()}`
@@ -671,58 +566,27 @@ export async function updateFile(
 	const fileBuffer = Buffer.from(binaryData.data, 'base64');
 	const mimeType = binaryData.mimeType || 'application/octet-stream';
 
-	itemBag.fileId = fileId;
-	itemBag.binaryPropertyName = binPropName;
-	itemBag.byteLength = fileBuffer.byteLength;
-	if (wantsCustomName) itemBag.newFilename = finalName;
+	const updatedFileResponseRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+		method: 'PUT',
+		url: `${baseUrl}/files/${encodeURIComponent(fileId)}`,
+		headers: { Accept: 'application/vnd.api+json', 'Content-Type': mimeType },
+		body: fileBuffer,
+		json: true,
+	});
+	const updatedFileResponse =
+		typeof updatedFileResponseRaw === 'string' ? JSON.parse(updatedFileResponseRaw) : updatedFileResponseRaw;
 
-	const updatedFileResponseRaw = await this.helpers.requestWithAuthentication.call(
-		this,
-		'twakeDriveOAuth2Api',
-		{
-			method: 'PUT',
+	if (wantsCustomName && finalName && finalName !== currentName) {
+		await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+			method: 'PATCH',
 			url: `${baseUrl}/files/${encodeURIComponent(fileId)}`,
 			headers: {
 				Accept: 'application/vnd.api+json',
-				'Content-Type': mimeType,
+				'Content-Type': 'application/vnd.api+json',
 			},
-			body: fileBuffer,
+			body: { data: { type: 'io.cozy.files', id: fileId, attributes: { name: finalName } } },
 			json: true,
-		},
-	);
-
-	const updatedFileResponse =
-		typeof updatedFileResponseRaw === 'string'
-			? JSON.parse(updatedFileResponseRaw)
-			: updatedFileResponseRaw;
-
-	itemBag.updatedFile = updatedFileResponse;
-
-	let changedFilenameResponse: any = null;
-	if (wantsCustomName && finalName && finalName !== currentName) {
-		const renameRaw = await this.helpers.requestWithAuthentication.call(
-			this,
-			'twakeDriveOAuth2Api',
-			{
-				method: 'PATCH',
-				url: `${baseUrl}/files/${encodeURIComponent(fileId)}`,
-				headers: {
-					Accept: 'application/vnd.api+json',
-					'Content-Type': 'application/vnd.api+json',
-				},
-				body: {
-					data: {
-						type: 'io.cozy.files',
-						id: fileId,
-						attributes: { name: finalName },
-					},
-				},
-				json: true,
-			},
-		);
-
-		changedFilenameResponse = typeof renameRaw === 'string' ? JSON.parse(renameRaw) : renameRaw;
-		itemBag.rename = changedFilenameResponse;
+		});
 	}
 
 	const metaAfter = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
@@ -734,8 +598,7 @@ export async function updateFile(
 	} as any);
 	const meta = (metaAfter as any)?.data ?? metaAfter;
 	const finalFilename =
-		(wantsCustomName ? finalName : '') ||
-		String(meta?.attributes?.name ?? binaryData.fileName ?? 'updated.bin');
+		(wantsCustomName ? finalName : '') || String(meta?.attributes?.name ?? binaryData.fileName ?? 'updated.bin');
 	const finalMime = String(meta?.attributes?.mime ?? mimeType ?? 'application/octet-stream');
 
 	const dl = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
@@ -758,51 +621,24 @@ export async function updateFile(
 	else if ((body as any)?.type === 'Buffer' && Array.isArray((body as any)?.data)) {
 		buf = Buffer.from((body as any).data);
 	} else {
-		ezlog('download.unexpected', { kind: typeof body, keys: Object.keys(body || {}) });
 		throw new NodeOperationError(this.getNode(), 'Unexpected binary response type after update');
 	}
 
 	const prepared = await this.helpers.prepareBinaryData(buf, finalFilename, finalMime);
 
 	if (!items[itemIndex]) items[itemIndex] = { json: {} };
-	const outItem = items[itemIndex];
-	outItem.binary = {
-		...(outItem.binary || {}),
-		[binPropName]: prepared,
-	};
-	outItem.json = {
-		...(outItem.json || {}),
-		updateFile: {
-			fileId,
-			contentUpdate: updatedFileResponse,
-			nameUpdate: changedFilenameResponse,
-		},
-	};
+	items[itemIndex].binary = { ...(items[itemIndex].binary || {}), [binPropName]: prepared };
+	items[itemIndex].json = updatedFileResponse;
 
-	ezlog('updateFile', {
-		...itemBag,
-		outputBinary: { prop: binPropName, name: finalFilename, mime: finalMime, size: prepared.fileSize },
-	});
-
-	return {
-		updateFile: {
-			fileId,
-			contentUpdate: updatedFileResponse,
-			nameUpdate: changedFilenameResponse,
-		},
-	};
+	return;
 }
 
 export async function renameFile(
 	this: IExecuteFunctions,
 	itemIndex: number,
-	ezlog: (name: string, value: any) => void,
+	_ezlog: (name: string, value: any) => void,
 ) {
-	const itemBag: Record<string, any> = {};
-
-	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
-		instanceUrl: string;
-	};
+	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as { instanceUrl: string };
 	const baseUrl = instanceUrl.replace(/\/+$/, '');
 
 	const fileSelectMode = this.getNodeParameter('fileSelectMode', itemIndex, 'dropdown') as 'dropdown' | 'byId';
@@ -837,9 +673,6 @@ export async function renameFile(
 	const baseNew = newNameInput.replace(/\.[^./\\]+$/, '');
 	const finalName = srcExt ? `${baseNew}${srcExt}` : baseNew;
 
-	itemBag.fileId = fileId;
-	itemBag.newName = finalName;
-
 	const renameRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
 		method: 'PATCH',
 		url: `${baseUrl}/files/${encodeURIComponent(fileId)}`,
@@ -848,25 +681,16 @@ export async function renameFile(
 			'Content-Type': 'application/vnd.api+json',
 		},
 		body: {
-			data: {
-				type: 'io.cozy.files',
-				id: fileId,
-				attributes: { name: finalName },
-			},
+			data: { type: 'io.cozy.files', id: fileId, attributes: { name: finalName } },
 		},
 		json: true,
 	});
 
 	const renameResponse = typeof renameRaw === 'string' ? JSON.parse(renameRaw) : renameRaw;
-	itemBag.renamedFile = renameResponse;
-	ezlog('renameFile', itemBag);
 
-	return {
-		renameFile: {
-			fileId,
-			newName: finalName,
-			file: renameResponse,
-		},
-	};
+	const items: INodeExecutionData[] = this.getInputData();
+	if (!items[itemIndex]) items[itemIndex] = { json: {} };
+	items[itemIndex].json = renameResponse;
+
+	return;
 }
-

@@ -1148,26 +1148,31 @@ export class TwakeDriveNode implements INodeType {
 					}
 
 					case 'copyFile': {
-						const out = await TwakeFilesHelpers.copyFile.call(this, itemIndex, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeFilesHelpers.copyFile.call(this, itemIndex, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]);
 						break;
 					}
 
+
 					case 'deleteFile': {
-						const out = await TwakeFilesHelpers.deleteFile.call(this, itemIndex, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeFilesHelpers.deleteFile.call(this, itemIndex, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]);
 						break;
 					}
 
 					case 'createFileFromText': {
-						const out = await TwakeFilesHelpers.createFileFromText.call(this, itemIndex, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeFilesHelpers.createFileFromText.call(this, itemIndex, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]);
 						break;
 					}
 
 					case 'moveFile': {
-						const out = await TwakeFilesHelpers.moveFile.call(this, itemIndex, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeFilesHelpers.moveFile.call(this, itemIndex, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]);
 						break;
 					}
 
@@ -1180,8 +1185,9 @@ export class TwakeDriveNode implements INodeType {
 
 
 					case 'renameFile': {
-						const out = await TwakeFilesHelpers.renameFile.call(this, itemIndex, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeFilesHelpers.renameFile.call(this, itemIndex, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]); // forward item with binary
 						break;
 					}
 
