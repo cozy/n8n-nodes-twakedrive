@@ -10,7 +10,7 @@ import * as TwakeDirectoriesHelpers from './DirectoriesHelpers/DirectoriesHelper
 import * as TwakeShareHelpers from './ShareHelpers/ShareHelpers';
 import { createEzlog } from './utils/ezlog';
 import { foldersLoaders, filesLoaders, shareLoaders } from './methods';
-import { fileFolderProps, fileProps } from './descriptions';
+import { fileFolderProps, fileProps, folderProps } from './descriptions';
 
 export class TwakeDriveNode implements INodeType {
 	description: INodeTypeDescription = {
@@ -33,8 +33,6 @@ export class TwakeDriveNode implements INodeType {
 		outputs: [NodeConnectionType.Main],
 		usableAsTool: true,
 		properties: [
-			...fileFolderProps,
-			...fileProps,
 			{
 				displayName: 'Resource',
 				name: 'resource',
@@ -49,42 +47,9 @@ export class TwakeDriveNode implements INodeType {
 				],
 				description: 'Select the type of item to operate on',
 			},
-			// Operation — FOLDER
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				default: 'createFolder',
-				displayOptions: { show: { resource: ['folder'] } },
-				options: [
-					{
-						name: 'Create Folder',
-						value: 'createFolder',
-						description:
-							'Create a new directory in the Twake instance. Destination directory can be specified.',
-						action: 'Create folder',
-					},
-					{
-						name: 'Delete Folder',
-						value: 'deleteFolder',
-						description: 'Delete the selected directory from the Twake instance',
-						action: 'Delete folder',
-					},
-					{
-						name: 'Move Folder',
-						value: 'moveFolder',
-						description: 'Move the selected folder to another directory',
-						action: 'Move folder',
-					},
-					{
-						name: 'Rename Folder',
-						value: 'renameFolder',
-						description: 'Rename the selected folder',
-						action: 'Rename folder',
-					},
-				],
-			},
+			...fileFolderProps,
+			...fileProps,
+			...folderProps,
 			// Operation — SHARE
 			{
 				displayName: 'Operation',
@@ -143,16 +108,6 @@ export class TwakeDriveNode implements INodeType {
 				placeholder: 'file-ID',
 				displayOptions: {
 					show: { operation: ['shareByLink'], fileSelectMode: ['byId'], shareTargetType: ['file'] },
-				},
-			},
-			{
-				displayName: 'Source Folder ID (Manual)',
-				name: 'sourceFolderIdById',
-				type: 'string',
-				default: '',
-				placeholder: 'directory-ID',
-				displayOptions: {
-					show: { operation: ['moveFolder', 'deleteFolder', 'renameFolder'], fileSelectMode: ['byId'] },
 				},
 			},
 			{
@@ -284,32 +239,6 @@ export class TwakeDriveNode implements INodeType {
 				description:
 					'Comma-separated labels; This will be the key(s) of the created codes, each creates a separate link that can be revoked independently',
 				displayOptions: { show: { operation: ['shareByLink'] } },
-			},
-			{
-				displayName: 'Directory Name',
-				name: 'dirName',
-				type: 'string',
-				default: '',
-				placeholder: 'My new folder',
-				description: 'Name of the directory to create',
-				displayOptions: {
-					show: {
-						operation: ['createFolder'],
-					},
-				},
-			},
-			{
-				displayName: 'New Folder Name',
-				name: 'newFolderName',
-				type: 'string',
-				default: '',
-				placeholder: 'My renamed folder',
-				description: 'New name for the folder',
-				displayOptions: {
-					show: {
-						operation: ['renameFolder'],
-					},
-				},
 			},
 		],
 	};

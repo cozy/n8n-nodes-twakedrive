@@ -1,7 +1,6 @@
 import type { INodeProperties } from 'n8n-workflow';
 
 export const fileProps: INodeProperties[] = [
-	// Operation — FILE
 	{
 		displayName: 'Operation',
 		name: 'operation',
