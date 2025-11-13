@@ -1,0 +1,1 @@
+export { fileFolderProps } from './fileFolder.properties';
