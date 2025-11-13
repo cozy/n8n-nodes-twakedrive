@@ -5,12 +5,10 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
-import * as TwakeFilesHelpers from './FilesHelpers/FilesHelpers';
-import * as TwakeDirectoriesHelpers from './DirectoriesHelpers/DirectoriesHelpers';
-import * as TwakeShareHelpers from './ShareHelpers/ShareHelpers';
+import { TwakeFilesHelpers, TwakeDirectoriesHelpers, TwakeShareHelpers } from './helpers';
 import { createEzlog } from './utils/ezlog';
-import { foldersLoaders, filesLoaders, shareLoaders } from './methods';
-import { fileFolderProps, fileProps, folderProps, shareProps } from './descriptions';
+import { foldersLoaders, filesLoaders, shareLoaders } from './loadOptions';
+import { fileFolderProps, fileProps, folderProps, shareProps } from './properties';
 
 export class TwakeDriveNode implements INodeType {
 	description: INodeTypeDescription = {
