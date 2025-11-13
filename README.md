@@ -126,6 +126,20 @@ This is a community node. If you encounter issues or have feature requests, feel
 
 ## Version history
 
+### 1.4.0
+
+#### 🚨 Breaking changes
+
+- Users can now choose, for all operations, whether to use a dynamic dropdown or paste an ID to select a file or folder. When using the dropdown for folders, the selected folder is used to request its children, allowing users to navigate through the tree structure. The list always keeps the direct parent and the root directory, so you can go back or move up the tree at any time. Nothing changes when using an ID: just paste the target ID directly.
+
+- `createFileFromText` has been improved. Users can now choose to save a new file as `io.cozy.notes` or as a simple `.txt` file. In the case of a Cozy Note, markdown is supported for the file content.
+
+- All operation return values (items OUT) are now the raw server response (`data` object), just like `getFileFolder` in the previous-to-last version (1.3.1). No more “embellishments”. This will affect existing workflows, as expression paths inside operations will no longer be the same.
+
+- The token refresh issue appears to be resolved. We now use a specific HTTP code on which n8n triggers a token refresh. This isn’t documented in the n8n docs, but it seems to be supported. Thanks to [b1zya](https://github.com/n8n-io/n8n/issues/17450#issuecomment-3376335231) for the tip.
+
+- Full reorganisation of the project structure to make it easier to maintain and update. The project now has a significantly lighter `TwakeDriveNode.node.ts` file, with properties, descriptions and option loaders separated into dedicated directories.
+
 ### 1.3.2
 
 - Ensure `uploadFile` operation return all input binaries
