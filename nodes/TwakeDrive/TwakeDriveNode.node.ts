@@ -2,15 +2,13 @@ import type {
 	IExecuteFunctions,
 	INodeExecutionData,
 	INodeType,
-	INodePropertyOptions,
 	INodeTypeDescription,
-	ILoadOptionsFunctions,
 } from 'n8n-workflow';
 import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
-import * as TwakeFilesHelpers from './FilesHelpers/FilesHelpers';
-import * as TwakeDirectoriesHelpers from './DirectoriesHelpers/DirectoriesHelpers';
-import * as TwakeShareHelpers from './ShareHelpers/ShareHelpers';
+import { TwakeFilesHelpers, TwakeDirectoriesHelpers, TwakeShareHelpers } from './helpers';
 import { createEzlog } from './utils/ezlog';
+import { foldersLoaders, filesLoaders, shareLoaders } from './loadOptions';
+import { fileFolderProps, fileProps, folderProps, shareProps } from './properties';
 
 export class TwakeDriveNode implements INodeType {
 	description: INodeTypeDescription = {
@@ -18,6 +16,7 @@ export class TwakeDriveNode implements INodeType {
 		name: 'twakeDriveNode',
 		group: ['transform'],
 		version: 1,
+		subtitle: '={{ $parameter["resource"] + " operation" }}',
 		icon: 'file:icon.svg',
 		description: 'Basic Twake Drive',
 		defaults: {
@@ -47,541 +46,17 @@ export class TwakeDriveNode implements INodeType {
 				],
 				description: 'Select the type of item to operate on',
 			},
-			// Operation — FILE/FOLDER
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				default: 'getFileFolder',
-				displayOptions: { show: { resource: ['fileFolder'] } },
-				options: [
-					{
-						name: 'List Files',
-						value: 'getFileFolder',
-						description: 'List a folder content or fetch a single file depending on Target',
-						action: 'Get files folder',
-					},
-				],
-			},
-			{
-				displayName: 'Target',
-				name: 'targetType',
-				type: 'options',
-				options: [
-					{ name: 'Folder', value: 'folder' },
-					{ name: 'File', value: 'file' },
-				],
-				default: 'folder',
-				description: 'Choose whether to list a folder (its contents) or fetch a single file',
-				displayOptions: { show: { resource: ['fileFolder'], operation: ['getFileFolder'] } },
-			},
-
-			// Operation — FILE
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				default: 'copyFile',
-				displayOptions: { show: { resource: ['file'] } },
-				options: [
-					{
-						name: 'Copy File',
-						value: 'copyFile',
-						description: 'Copy a file into the target directory if any',
-						action: 'Copy file',
-					},
-					{
-						name: 'Create File From Text',
-						value: 'createFileFromText',
-						description: 'Create a text file with provided content',
-						action: 'Create file from text',
-					},
-					{
-						name: 'Delete File',
-						value: 'deleteFile',
-						description: 'Delete a file by ID',
-						action: 'Delete file',
-					},
-					{
-						name: 'Move File',
-						value: 'moveFile',
-						description: 'Move the targeted file to another directory',
-						action: 'Move file',
-					},
-					{
-						name: 'Rename File',
-						value: 'renameFile',
-						description: 'Rename the targeted file',
-						action: 'Rename file',
-					},
-					{
-						name: 'Update File',
-						value: 'updateFile',
-						description: 'Update the targeted file',
-						action: 'Update file',
-					},
-					{
-						name: 'Upload File',
-						value: 'uploadFile',
-						description: 'Upload a received file in the Twake instance in designated directory',
-						action: 'Upload file',
-					},
-				],
-			},
-			// Operation — FOLDER
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				default: 'createFolder',
-				displayOptions: { show: { resource: ['folder'] } },
-				options: [
-					{
-						name: 'Create Folder',
-						value: 'createFolder',
-						description:
-							'Create a new directory in the Twake instance. Destination directory can be specified.',
-						action: 'Create folder',
-					},
-					{
-						name: 'Delete Folder',
-						value: 'deleteFolder',
-						description: 'Delete the selected directory from the Twake instance',
-						action: 'Delete folder',
-					},
-					{
-						name: 'Move Folder',
-						value: 'moveFolder',
-						description: 'Move the selected folder to another directory',
-						action: 'Move folder',
-					},
-					{
-						name: 'Rename Folder',
-						value: 'renameFolder',
-						description: 'Rename the selected folder',
-						action: 'Rename folder',
-					},
-				],
-			},
-			// Operation — SHARE
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				default: 'shareByLink',
-				displayOptions: { show: { resource: ['share'] } },
-				options: [
-					{
-						name: 'Delete Share (by Permissions ID)',
-						value: 'deleteShare',
-						description: 'Delete a share by its permissions ID (revokes all codes)',
-						action: 'Delete share',
-					},
-					{
-						name: 'Share by Link (File or Folder)',
-						value: 'shareByLink',
-						description: 'Create a share link for a file or a folder',
-						action: 'Create share',
-					},
-				],
-			},
-
-			{
-				displayName: 'Target ID',
-				name: 'targetId',
-				type: 'string',
-				default: '',
-				description:
-					'ID of the targeted file or directory. If the target is a folder and value is left empty , root (io.cozy.files.root-dir) is used.',
-				displayOptions: {
-					show: {
-						operation: ['deleteFile', 'shareByLink', 'getFileFolder'],
-					},
-				},
-			},
-			{
-				displayName: 'Permissions Name or ID',
-				name: 'permissionsId',
-				type: 'options',
-				typeOptions: {
-					loadOptionsMethod: 'loadSharePermissions',
-				},
-				default: '',
-				required: true,
-				description:
-					'Select the share to delete (labels · ID). Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
-				displayOptions: { show: { operation: ['deleteShare'] } },
-			},
-			{
-				displayName: 'Revoke Only Selected Labels',
-				name: 'useLabels',
-				type: 'boolean',
-				default: false,
-				description:
-					'Whether to revoke only selected labels. When disabled, the entire share is deleted.',
-				displayOptions: { show: { operation: ['deleteShare'] } },
-			},
-			{
-				displayName: 'Labels to Revoke (Optional)',
-				name: 'labelsToRevoke',
-				type: 'multiOptions',
-				typeOptions: {
-					loadOptionsMethod: 'loadShareLabels',
-					loadOptionsDependsOn: ['permissionsId'],
-				},
-				default: [],
-				placeholder: 'Leave empty to delete the entire share',
-				description:
-					'Select labels to revoke. If empty (or switch OFF), the entire share is deleted. Choose from the list, or specify IDs using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
-				displayOptions: { show: { operation: ['deleteShare'], useLabels: [true] } },
-			},
-
-			{
-				displayName: 'Access Level',
-				name: 'accessLevel',
-				type: 'options',
-				default: 'read',
-				options: [
-					{ name: 'Read-Only', value: 'read' },
-					{ name: 'Can Edit', value: 'write' },
-				],
-				displayOptions: { show: { operation: ['shareByLink'] } },
-			},
-			{
-				displayName: 'Use Expiry',
-				name: 'useTtl',
-				type: 'boolean',
-				default: false,
-				description: 'Whether to set an expiry for the share',
-				displayOptions: { show: { operation: ['shareByLink'] } },
-			},
-			{
-				displayName: 'Expiry (Duration)',
-				name: 'expiryDuration',
-				type: 'fixedCollection',
-				default: {},
-				typeOptions: { multipleValues: false },
-				displayOptions: { show: { operation: ['shareByLink'], useTtl: [true] } },
-				options: [
-					{
-						displayName: 'Duration',
-						name: 'duration',
-						values: [
-							{
-								displayName: 'Amount',
-								name: 'amount',
-								type: 'number',
-								default: 1,
-								typeOptions: { minValue: 1 },
-							},
-							{
-								displayName: 'Unit',
-								name: 'unit',
-								type: 'options',
-								default: 's',
-								options: [
-									{ name: 'Days', value: 'D' },
-									{ name: 'Hours', value: 'h' },
-									{ name: 'Minutes', value: 'm' },
-									{ name: 'Months', value: 'M' },
-									{ name: 'Seconds', value: 's' },
-									{ name: 'Years', value: 'Y' },
-								],
-							},
-						],
-					},
-				],
-			},
-
-			{
-				displayName: 'Protect with Password',
-				name: 'usePassword',
-				type: 'boolean',
-				default: false,
-				description: 'Whether to protect the share with a password',
-				displayOptions: { show: { operation: ['shareByLink'] } },
-			},
-			{
-				displayName: 'Password',
-				name: 'sharePassword',
-				type: 'string',
-				typeOptions: { password: true },
-				default: '',
-				displayOptions: { show: { operation: ['shareByLink'], usePassword: [true] } },
-			},
-			{
-				displayName: 'Codes (Comma-Separated Labels)',
-				name: 'codes',
-				type: 'string',
-				default: '',
-				placeholder: 'e.g. link or clientA,clientB ...',
-				description:
-					'Comma-separated labels; This will be the key(s) of the created codes, each creates a separate link that can be revoked independently',
-				displayOptions: { show: { operation: ['shareByLink'] } },
-			},
-
-			{
-				displayName: 'File ID',
-				name: 'fileId',
-				type: 'string',
-				default: '',
-				description: 'ID of the targeted file',
-				displayOptions: {
-					show: {
-						operation: ['copyFile', 'moveFile', 'updateFile', 'renameFile'],
-					},
-				},
-			},
-			{
-				displayName: 'Choose Destination Folder',
-				name: 'customDir',
-				type: 'boolean',
-				description: 'Whether to choose a destination folder',
-				default: false,
-				displayOptions: {
-					show: {
-						operation: ['copyFile', 'createFileFromText', 'moveFile', 'createFolder', 'moveFolder'],
-					},
-				},
-			},
-			{
-				displayName: 'Directory ID',
-				name: 'dirId',
-				type: 'string',
-				default: '',
-				description: 'ID of the destination directory',
-				displayOptions: {
-					show: {
-						operation: [
-							'uploadFile',
-							'copyFile',
-							'createFileFromText',
-							'moveFile',
-							'createFolder',
-							'moveFolder',
-						],
-						customDir: [true],
-					},
-				},
-			},
-			{
-				displayName: 'Directory ID',
-				name: 'dirId',
-				type: 'string',
-				default: '',
-				description: 'ID of the targeted directory',
-				displayOptions: {
-					show: {
-						operation: ['uploadFile', 'deleteFolder'],
-					},
-				},
-			},
-			{
-				displayName: 'Overwrite if Exists',
-				name: 'overwriteIfExists',
-				type: 'boolean',
-				default: false,
-				description: 'Whether to overwrite a file with the same name in the destination directory',
-				displayOptions: {
-					show: {
-						operation: ['uploadFile'],
-					},
-				},
-			},
-
-			{
-				displayName: 'Name of the New File',
-				name: 'customName',
-				type: 'boolean',
-				default: false,
-				description: 'Whether to set a custom name',
-				displayOptions: {
-					show: {
-						operation: ['copyFile', 'updateFile'],
-					},
-				},
-			},
-			{
-				displayName: 'New Name',
-				name: 'newName',
-				type: 'string',
-				default: '',
-				placeholder: 'file(copy).pdf',
-				description: 'New name for the copied file or folder',
-				displayOptions: {
-					show: {
-						operation: ['copyFile', 'updateFile'],
-						customName: [true],
-					},
-				},
-			},
-			{
-				displayName: 'New Name',
-				name: 'newName',
-				type: 'string',
-				default: '',
-				placeholder: 'myNewFile.txt',
-				description: 'New name for the created file',
-				displayOptions: {
-					show: {
-						operation: ['createFileFromText', 'renameFile'],
-					},
-				},
-			},
-			{
-				displayName: 'Text',
-				name: 'textContent',
-				type: 'string',
-				default: '',
-				description: 'Text content of the new file',
-				typeOptions: {
-					rows: 5,
-				},
-				displayOptions: {
-					show: {
-						operation: ['createFileFromText'],
-					},
-				},
-			},
-			{
-				displayName: 'Directory Name',
-				name: 'dirName',
-				type: 'string',
-				default: '',
-				placeholder: 'My new folder',
-				description: 'Name of the directory to create',
-				displayOptions: {
-					show: {
-						operation: ['createFolder'],
-					},
-				},
-			},
-			{
-				displayName: 'Folder ID',
-				name: 'folderId',
-				type: 'string',
-				default: '',
-				description: 'ID of the folder to move or rename',
-				displayOptions: {
-					show: {
-						operation: ['moveFolder', 'renameFolder'],
-					},
-				},
-			},
-			{
-				displayName: 'New Folder Name',
-				name: 'newFolderName',
-				type: 'string',
-				default: '',
-				placeholder: 'My renamed folder',
-				description: 'New name for the folder',
-				displayOptions: {
-					show: {
-						operation: ['renameFolder'],
-					},
-				},
-			},
+			...fileFolderProps,
+			...fileProps,
+			...folderProps,
+			...shareProps,
 		],
 	};
 	methods = {
 		loadOptions: {
-			// Show all permissions "share-by-link" in a dropdown
-			async loadSharePermissions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as {
-					instanceUrl: string;
-				};
-				const baseUrl: string = (instanceUrl || '').replace(/\/+$/, '');
-
-				const out: INodePropertyOptions[] = [];
-				const seen: Set<string> = new Set();
-				let next: string | undefined = undefined;
-
-				do {
-					const url: string = next
-						? new URL(next, baseUrl).toString()
-						: `${baseUrl}/permissions/doctype/io.cozy.files/shared-by-link`;
-
-					const respRaw: unknown = await this.helpers.requestWithAuthentication.call(
-						this,
-						'twakeDriveOAuth2Api',
-						{
-							method: 'GET',
-							url,
-							headers: { Accept: 'application/vnd.api+json' },
-							json: true,
-						},
-					);
-
-					const resp: any =
-						typeof respRaw === 'string' ? JSON.parse(respRaw as string) : (respRaw as any);
-
-					const data: any[] = Array.isArray(resp?.data) ? resp.data : [];
-
-					for (const permissionEntry of data) {
-						const id: string = String(permissionEntry?.id ?? '').trim();
-						if (!id || seen.has(id)) continue;
-						seen.add(id);
-
-						const attrs: any = permissionEntry?.attributes ?? {};
-						const codes: Record<string, string> =
-							attrs?.codes && typeof attrs.codes === 'object' && !Array.isArray(attrs.codes)
-								? (attrs.codes as Record<string, string>)
-								: {};
-						const shortcodes: Record<string, string> =
-							attrs?.shortcodes &&
-							typeof attrs.shortcodes === 'object' &&
-							!Array.isArray(attrs.shortcodes)
-								? (attrs.shortcodes as Record<string, string>)
-								: {};
-
-						const labels: string[] = Array.from(
-							new Set([...Object.keys(shortcodes), ...Object.keys(codes)].filter(Boolean)),
-						).sort();
-
-						const name: string = labels.length ? `${labels.join(', ')} · ${id}` : id;
-						const value: string = JSON.stringify({ id, codes, shortcodes });
-
-						out.push({ name, value });
-					}
-
-					next = (resp?.links?.next as string | undefined) || undefined;
-				} while (next);
-
-				return out;
-			},
-
-			// Show list of labels of the selected "share-by-link" permission
-			async loadShareLabels(this: ILoadOptionsFunctions) {
-				const permParam = (this.getCurrentNodeParameter('permissionsId') as string) || '';
-				if (!permParam) return [];
-
-				let parsed: any;
-				try {
-					parsed = JSON.parse(permParam);
-				} catch {
-					return [];
-				}
-
-				const codes =
-					parsed?.codes && typeof parsed.codes === 'object' && !Array.isArray(parsed.codes)
-						? (parsed.codes as Record<string, string>)
-						: {};
-				const shortcodes =
-					parsed?.shortcodes &&
-					typeof parsed.shortcodes === 'object' &&
-					!Array.isArray(parsed.shortcodes)
-						? (parsed.shortcodes as Record<string, string>)
-						: {};
-
-				const labels = Array.from(
-					new Set([...Object.keys(shortcodes), ...Object.keys(codes)]),
-				).sort();
-				return labels.map((label) => ({ name: label, value: label }));
-			},
+			...foldersLoaders,
+			...filesLoaders,
+			...shareLoaders,
 		},
 	};
 
@@ -612,38 +87,46 @@ export class TwakeDriveNode implements INodeType {
 					}
 
 					case 'copyFile': {
-						const out = await TwakeFilesHelpers.copyFile.call(this, itemIndex, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeFilesHelpers.copyFile.call(this, itemIndex, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]);
 						break;
 					}
 
+
 					case 'deleteFile': {
-						const out = await TwakeFilesHelpers.deleteFile.call(this, itemIndex, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeFilesHelpers.deleteFile.call(this, itemIndex, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]);
 						break;
 					}
 
 					case 'createFileFromText': {
-						const out = await TwakeFilesHelpers.createFileFromText.call(this, itemIndex, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeFilesHelpers.createFileFromText.call(this, itemIndex, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]);
 						break;
 					}
 
 					case 'moveFile': {
-						const out = await TwakeFilesHelpers.moveFile.call(this, itemIndex, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeFilesHelpers.moveFile.call(this, itemIndex, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]);
 						break;
 					}
 
 					case 'updateFile': {
-						const out = await TwakeFilesHelpers.updateFile.call(this, itemIndex, items, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeFilesHelpers.updateFile.call(this, itemIndex, items, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]); // forward item with binary
 						break;
 					}
 
+
 					case 'renameFile': {
-						const out = await TwakeFilesHelpers.renameFile.call(this, itemIndex, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeFilesHelpers.renameFile.call(this, itemIndex, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]); // forward item with binary
 						break;
 					}
 
@@ -651,26 +134,30 @@ export class TwakeDriveNode implements INodeType {
 					// DIRECTORIES OPERATIONS //
 					////////////////////////////
 					case 'createFolder': {
-						const out = await TwakeDirectoriesHelpers.createFolder.call(this, itemIndex, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeDirectoriesHelpers.createFolder.call(this, itemIndex, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]); // forward item with binary
 						break;
 					}
 
 					case 'deleteFolder': {
-						const out = await TwakeDirectoriesHelpers.deleteFolder.call(this, itemIndex, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeDirectoriesHelpers.deleteFolder.call(this, itemIndex, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]); // forward item with binary
 						break;
 					}
 
 					case 'moveFolder': {
-						const out = await TwakeDirectoriesHelpers.moveFolder.call(this, itemIndex, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeDirectoriesHelpers.moveFolder.call(this, itemIndex, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]); // forward item with binary
 						break;
 					}
 
 					case 'renameFolder': {
-						const out = await TwakeDirectoriesHelpers.renameFolder.call(this, itemIndex, ezlog);
-						itemsOut.push({ json: out });
+						await TwakeDirectoriesHelpers.renameFolder.call(this, itemIndex, ezlog);
+						const inputItems = this.getInputData();
+						itemsOut.push(inputItems[itemIndex]); // forward item with binary
 						break;
 					}
 
@@ -690,10 +177,10 @@ export class TwakeDriveNode implements INodeType {
 					}
 				}
 			} catch (error) {
-				ezlog('errorMessage', error.message);
-				ezlog('errorResponse', error.response?.data || null);
+				ezlog('errorMessage', (error as any).message);
+				ezlog('errorResponse', (error as any).response?.data || null);
 				if (!this.continueOnFail()) {
-					throw new NodeOperationError(this.getNode(), error, { itemIndex });
+					throw new NodeOperationError(this.getNode(), error as any, { itemIndex });
 				}
 			}
 		}

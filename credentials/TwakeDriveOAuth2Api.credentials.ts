@@ -68,6 +68,7 @@ export class TwakeDriveOAuth2Api implements ICredentialType {
 	];
 
 	oauth2 = {
+		tokenExpiredStatusCode: 400,
 		grantType: 'authorizationCode',
 		scope: 'io.cozy.files',
 		tokenRequestMethod: 'POST',
