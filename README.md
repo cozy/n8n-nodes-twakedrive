@@ -144,7 +144,7 @@ This is a community node. If you encounter issues or have feature requests, feel
 
 - All operation return values (items OUT) are now the raw server response (`data` object), just like `getFileFolder` in the previous-to-last version (1.3.1). No more “embellishments”. This will affect existing workflows, as expression paths inside operations will no longer be the same.
 
-- The token refresh issue appears to be resolved. We now use a specific HTTP code on which n8n triggers a token refresh. This isn’t documented in the n8n docs, but it seems to be supported. Thanks to [b1zya](https://github.com/n8n-io/n8n/issues/17450#issuecomment-3376335231) for the tip.
+- The token refresh issue appears to be resolved. We now rely on a specific HTTP status code that triggers n8n’s built-in token refresh mechanism. This behavior is not documented, but it seems to be supported in practice. We’ll monitor it to confirm its reliability. Thanks to [b1zya](https://github.com/n8n-io/n8n/issues/17450#issuecomment-3376335231) for the insight.
 
 - Full reorganisation of the project structure to make it easier to maintain and update. The project now has a significantly lighter `TwakeDriveNode.node.ts` file, with properties, descriptions and option loaders separated into dedicated directories.
 
