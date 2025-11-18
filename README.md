@@ -29,6 +29,11 @@ Or follow the [installation guide](https://docs.n8n.io/integrations/community-no
 
 List of all available operations in this node.
 
+All operations provide a `selectMode` setting with two options:
+
+- `byDropdown`: Displays a dynamic list that updates as you navigate through folders. Each selection refreshes the available children, allowing you to browse the tree. The final selected item is used by the operation.
+- `byId`: A simple input where the user can paste a file or folder ID. The provided ID is used directly by the operation.
+
 ### Files operations
 
 - List files
@@ -38,6 +43,9 @@ List of all available operations in this node.
   - Possibility to overwrite an already existing file
 - Copy files
 - Create file from text
+  - Possibility to overwrite an already existing file
+  - Possibility to save whether an `io.cozy.notes` or a `.txt`
+  - Content as Markdown supported for `io.cozy.notes` files
 - Delete files
 - Update files
 - Move files
