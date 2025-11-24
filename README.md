@@ -62,9 +62,8 @@ All operations provide a `selectMode` setting with two options:
 
 - Delete Share (by Permissions ID)
   - Dynamic dropdown to select a permission ID
-  - Dynamic dropdown depending on the selected ID to select a specific label(s) to revoke share link from.
 - Share by Link (File or Folder)
-  - With multi-label handling, expiration possibility and password protection.
+  - With expiration possibility and password protection.
 
 _Different improvements (like dynamic lists when relevant on files and folders operations or Triggers operations) are planned for future updates._
 
@@ -133,6 +132,11 @@ Tested with:
 This is a community node. If you encounter issues or have feature requests, feel free to open an issue or PR on the [GitHub repository](https://github.com/cozy/n8n-nodes-twakedrive).
 
 ## Version history
+
+### 1.4.2
+
+- Removed the **"Codes"** field from the UI and now enforce a fixed label internally in `shareByLink`, preventing permissions from being created without a usable share link.
+- Removed the **"Revoke only selected labels"** logic in `deleteShareByLink`, since each share operation now produces a single share link per permission.
 
 ### 1.4.0
 
