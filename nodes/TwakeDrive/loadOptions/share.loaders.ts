@@ -70,42 +70,6 @@ async function loadSharePermissions(this: ILoadOptionsFunctions): Promise<INodeP
 	}
 }
 
-async function loadShareLabels(this: ILoadOptionsFunctions) {
-	try {
-		const permParam = (this.getCurrentNodeParameter('permissionsId') as string) || '';
-		if (!permParam) return [];
-
-		let parsed: any;
-		try {
-			parsed = JSON.parse(permParam);
-		} catch {
-			return [];
-		}
-
-		const codes =
-			parsed?.codes && typeof parsed.codes === 'object' && !Array.isArray(parsed.codes)
-				? (parsed.codes as Record<string, string>)
-				: {};
-		const shortcodes =
-			parsed?.shortcodes &&
-			typeof parsed.shortcodes === 'object' &&
-			!Array.isArray(parsed.shortcodes)
-				? (parsed.shortcodes as Record<string, string>)
-				: {};
-
-		const labels = Array.from(new Set([...Object.keys(shortcodes), ...Object.keys(codes)])).sort();
-		return labels.map((label) => ({ name: label, value: label }));
-	} catch (err: any) {
-		const status = err?.statusCode || err?.response?.status || 'unknown';
-		const detail = err?.response?.data || err?.message || err;
-		throw new NodeOperationError(
-			this.getNode(),
-			`loadShareLabels failed (HTTP ${status}) · ${JSON.stringify(detail)}`,
-		);
-	}
-}
-
 export const shareLoaders = {
 	loadSharePermissions,
-	loadShareLabels,
 };

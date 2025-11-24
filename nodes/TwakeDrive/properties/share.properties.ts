@@ -12,7 +12,7 @@ export const shareProps: INodeProperties[] = [
 			{
 				name: 'Delete Share (by Permissions ID)',
 				value: 'deleteShare',
-				description: 'Delete a share by its permissions ID (revokes all codes)',
+				description: 'Delete a share by its permissions ID',
 				action: 'Delete share',
 			},
 			{
@@ -109,32 +109,8 @@ export const shareProps: INodeProperties[] = [
 		default: '',
 		required: true,
 		description:
-			'Select the share to delete (labels · ID). Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+			'Select the share to delete. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 		displayOptions: { show: { operation: ['deleteShare'] } },
-	},
-
-	{
-		displayName: 'Revoke Only Selected Labels',
-		name: 'useLabels',
-		type: 'boolean',
-		default: false,
-		description: 'Whether to revoke only selected labels. When disabled, the entire share is deleted.',
-		displayOptions: { show: { operation: ['deleteShare'] } },
-	},
-
-	{
-		displayName: 'Labels to Revoke (Optional)',
-		name: 'labelsToRevoke',
-		type: 'multiOptions',
-		typeOptions: {
-			loadOptionsMethod: 'loadShareLabels',
-			loadOptionsDependsOn: ['permissionsId'],
-		},
-		default: [],
-		placeholder: 'Leave empty to delete the entire share',
-		description:
-			'Select labels to revoke. If empty (or switch OFF), the entire share is deleted. Choose from the list, or specify IDs using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
-		displayOptions: { show: { operation: ['deleteShare'], useLabels: [true] } },
 	},
 
 	{
@@ -206,16 +182,5 @@ export const shareProps: INodeProperties[] = [
 		typeOptions: { password: true },
 		default: '',
 		displayOptions: { show: { operation: ['shareByLink'], usePassword: [true] } },
-	},
-
-	{
-		displayName: 'Codes (Comma-Separated Labels)',
-		name: 'codes',
-		type: 'string',
-		default: '',
-		placeholder: 'e.g. link or clientA,clientB ...',
-		description:
-			'Comma-separated labels; This will be the key(s) of the created codes, each creates a separate link that can be revoked independently',
-		displayOptions: { show: { operation: ['shareByLink'] } },
 	},
 ];
