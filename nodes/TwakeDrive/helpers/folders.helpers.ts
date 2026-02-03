@@ -1,5 +1,6 @@
 import type { IExecuteFunctions } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
+import { twakeDriveRequest } from './request.helpers';
 
 export async function createFolder(
 	this: IExecuteFunctions,
@@ -21,7 +22,7 @@ export async function createFolder(
 		throw new NodeOperationError(this.getNode(), 'Destination directory is required', { itemIndex });
 	}
 
-	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+	const resRaw = await twakeDriveRequest.call(this, {
 		method: 'POST',
 	  url: `${baseUrl}/files/${encodeURIComponent(targetDirId)}`,
 	  qs: { Type: 'directory', Name: dirName },
@@ -57,7 +58,7 @@ export async function deleteFolder(
 		throw new NodeOperationError(this.getNode(), 'Cannot delete root directory', { itemIndex });
 	}
 
-	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+	const resRaw = await twakeDriveRequest.call(this, {
 		method: 'DELETE',
 		url: `${baseUrl}/files/${encodeURIComponent(dirId)}`,
 	  headers: { Accept: 'application/vnd.api+json', 'Content-Type': 'application/json' },
@@ -111,7 +112,7 @@ export async function moveFolder(
 		);
 	}
 
-	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+	const resRaw = await twakeDriveRequest.call(this, {
 		method: 'PATCH',
 		url: `${baseUrl}/files/${encodeURIComponent(folderId)}`,
 	  headers: { Accept: 'application/vnd.api+json', 'Content-Type': 'application/vnd.api+json' },
@@ -152,7 +153,7 @@ export async function renameFolder(
 		throw new NodeOperationError(this.getNode(), 'New Folder Name is required', { itemIndex });
 	}
 
-	const resRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+	const resRaw = await twakeDriveRequest.call(this, {
 		method: 'PATCH',
 		url: `${baseUrl}/files/${encodeURIComponent(folderId)}`,
 	  headers: { Accept: 'application/vnd.api+json', 'Content-Type': 'application/vnd.api+json' },
