@@ -116,7 +116,7 @@ Doing it all in n8n is possible. Follow these steps:
 
 Ta-da 🎉, you are now connected via OAuth2.
 
-_Client registration via the instance's settings is planned for future updates_
+_Client registration via the instance's settings is on the way, coming very soon ..._
 
 ## Compatibility
 
@@ -132,6 +132,10 @@ Tested with:
 This is a community node. If you encounter issues or have feature requests, feel free to open an issue or PR on the [GitHub repository](https://github.com/cozy/n8n-nodes-twakedrive).
 
 ## Version history
+
+### 1.4.5
+
+- Introduce a shared twakeDriveRequest helper that wraps requestWithAuthentication with the correct OAuth2 options, and use it across all helpers and loaders. This allows the request to always refresh the token when it is expired so reconnect the credentials is no more needed. Thanks to [Paul Tran-Van](https://github.com/paultranvan) !
 
 ### 1.4.2
 
