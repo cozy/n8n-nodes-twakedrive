@@ -1,4 +1,5 @@
 import { IExecuteFunctions, NodeOperationError } from 'n8n-workflow';
+import { twakeDriveRequest } from './request.helpers';
 
 function resolveDriveBase(baseUrl: string) {
 	const u = new URL(baseUrl);
@@ -98,7 +99,7 @@ export async function shareByLink(
 		},
 	};
 
-	const respRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+	const respRaw = await twakeDriveRequest.call(this, {
 		method: 'POST',
 		url: `${baseUrl}/permissions`,
 		qs,
@@ -176,7 +177,7 @@ export async function deleteShareByLink(
 		throw new NodeOperationError(this.getNode(), 'Invalid permission ID', { itemIndex });
 	}
 
-	const delRaw = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+	const delRaw = await twakeDriveRequest.call(this, {
 		method: 'DELETE',
 		url: `${baseUrl}/permissions/${encodeURIComponent(permissionsId)}`,
 		headers: {

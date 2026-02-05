@@ -1,5 +1,6 @@
 import type { ILoadOptionsFunctions, INodePropertyOptions } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
+import { twakeDriveRequest } from '../helpers/request.helpers';
 
 async function loadFoldersByParent(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as { instanceUrl: string };
@@ -27,17 +28,13 @@ async function loadFoldersByParent(this: ILoadOptionsFunctions): Promise<INodePr
 			let currentId: string | null = parentId;
 
 			while (currentId && currentId !== 'io.cozy.files.root-dir') {
-				const selfRespRaw: unknown = await this.helpers.requestWithAuthentication.call(
-					this,
-					'twakeDriveOAuth2Api',
-					{
-						method: 'GET',
-						baseURL: baseUrl,
-						url: `/files/${encodeURIComponent(currentId)}`,
-						headers: { Accept: 'application/vnd.api+json' },
-						json: true,
-					} as any,
-				);
+				const selfRespRaw: unknown = await twakeDriveRequest.call(this, {
+					method: 'GET',
+					baseURL: baseUrl,
+					url: `/files/${encodeURIComponent(currentId)}`,
+					headers: { Accept: 'application/vnd.api+json' },
+					json: true,
+				} as any);
 				const selfResp: any = typeof selfRespRaw === 'string' ? JSON.parse(selfRespRaw) : selfRespRaw;
 				const selfData: any = (selfResp as any)?.data ?? selfResp;
 				const selfName = String(selfData?.attributes?.name ?? '');
@@ -74,7 +71,7 @@ async function loadFoldersByParent(this: ILoadOptionsFunctions): Promise<INodePr
 			const qs: Record<string, string | number> = { 'page[limit]': 30 };
 			if (cursor) qs['page[cursor]'] = cursor;
 
-			const resp = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+			const resp = await twakeDriveRequest.call(this, {
 				method: 'GET',
 				baseURL: baseUrl,
 				url: `/files/${encodeURIComponent(parentId)}`,
@@ -131,7 +128,7 @@ async function loadFoldersByParentSource(this: ILoadOptionsFunctions): Promise<I
 			let cur: string | null = parentId;
 
 			while (cur && cur !== 'io.cozy.files.root-dir') {
-				const selfRespRaw: any = await (this as any).helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+				const selfRespRaw: any = await twakeDriveRequest.call(this, {
 					method: 'GET',
 					baseURL: baseUrl,
 					url: `/files/${encodeURIComponent(cur)}`,
@@ -174,7 +171,7 @@ async function loadFoldersByParentSource(this: ILoadOptionsFunctions): Promise<I
 			const qs: Record<string, string | number> = { 'page[limit]': 30 };
 			if (cursor) qs['page[cursor]'] = cursor;
 
-			const resp: any = await (this as any).helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+			const resp: any = await twakeDriveRequest.call(this, {
 				method: 'GET',
 				baseURL: baseUrl,
 				url: `/files/${encodeURIComponent(parentId)}`,
@@ -231,7 +228,7 @@ async function loadFoldersByParentDest(this: ILoadOptionsFunctions): Promise<INo
 			let cur: string | null = parentId;
 
 			while (cur && cur !== 'io.cozy.files.root-dir') {
-				const selfRespRaw: any = await (this as any).helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+				const selfRespRaw: any = await twakeDriveRequest.call(this, {
 					method: 'GET',
 					baseURL: baseUrl,
 					url: `/files/${encodeURIComponent(cur)}`,
@@ -274,7 +271,7 @@ async function loadFoldersByParentDest(this: ILoadOptionsFunctions): Promise<INo
 			const qs: Record<string, string | number> = { 'page[limit]': 30 };
 			if (cursor) qs['page[cursor]'] = cursor;
 
-			const resp: any = await (this as any).helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+			const resp: any = await twakeDriveRequest.call(this, {
 				method: 'GET',
 				baseURL: baseUrl,
 				url: `/files/${encodeURIComponent(parentId)}`,

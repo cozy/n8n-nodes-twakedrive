@@ -1,5 +1,6 @@
 import type { ILoadOptionsFunctions, INodePropertyOptions } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
+import { twakeDriveRequest } from '../helpers/request.helpers';
 
 async function loadSharePermissions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 	try {
@@ -15,16 +16,12 @@ async function loadSharePermissions(this: ILoadOptionsFunctions): Promise<INodeP
 				? new URL(next, baseUrl).toString()
 				: `${baseUrl}/permissions/doctype/io.cozy.files/shared-by-link`;
 
-			const respRaw: unknown = await this.helpers.requestWithAuthentication.call(
-				this,
-				'twakeDriveOAuth2Api',
-				{
-					method: 'GET',
-					url,
-					headers: { Accept: 'application/vnd.api+json' },
-					json: true,
-				},
-			);
+			const respRaw: unknown = await twakeDriveRequest.call(this, {
+				method: 'GET',
+				url,
+				headers: { Accept: 'application/vnd.api+json' },
+				json: true,
+			});
 
 			const resp: any = typeof respRaw === 'string' ? JSON.parse(respRaw as string) : (respRaw as any);
 			const data: any[] = Array.isArray(resp?.data) ? resp.data : [];

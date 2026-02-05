@@ -1,4 +1,5 @@
 import type { ILoadOptionsFunctions, INodePropertyOptions } from 'n8n-workflow';
+import { twakeDriveRequest } from '../helpers/request.helpers';
 
 async function loadFilesByParent(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 	const { instanceUrl } = (await this.getCredentials('twakeDriveOAuth2Api')) as { instanceUrl: string };
@@ -13,7 +14,7 @@ async function loadFilesByParent(this: ILoadOptionsFunctions): Promise<INodeProp
 		const qs: Record<string, string | number> = { 'page[limit]': 30 };
 		if (cursor) qs['page[cursor]'] = cursor;
 
-		const resp = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+		const resp = await twakeDriveRequest.call(this, {
 			method: 'GET',
 			baseURL: baseUrl,
 			url: `/files/${encodeURIComponent(parentId)}`,
@@ -58,7 +59,7 @@ async function loadChildrenByParentAndType(this: ILoadOptionsFunctions): Promise
 		const qs: Record<string, string | number> = { 'page[limit]': 30 };
 		if (cursor) qs['page[cursor]'] = cursor;
 
-		const resp: any = await this.helpers.requestWithAuthentication.call(this, 'twakeDriveOAuth2Api', {
+		const resp: any = await twakeDriveRequest.call(this, {
 			method: 'GET',
 			baseURL: baseUrl,
 			url: `/files/${encodeURIComponent(parentId)}`,
