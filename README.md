@@ -133,7 +133,7 @@ This is a community node. If you encounter issues or have feature requests, feel
 
 ## Version history
 
-### 1.4.5
+### 1.5.0
 
 - Introduce a shared twakeDriveRequest helper that wraps requestWithAuthentication with the correct OAuth2 options, and use it across all helpers and loaders. This allows the request to always refresh the token when it is expired so reconnect the credentials is no more needed. Thanks to [Paul Tran-Van](https://github.com/paultranvan) !
 
