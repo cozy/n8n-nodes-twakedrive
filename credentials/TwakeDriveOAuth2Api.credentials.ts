@@ -41,20 +41,16 @@ export class TwakeDriveOAuth2Api implements ICredentialType {
 		{
 			displayName: 'Authorization URL',
 			name: 'authUrl',
-			type: 'string',
-			default: '',
+			type: 'hidden',
+			default: '={{$self["instanceUrl"]}}/auth/authorize',
 			required: true,
-			placeholder: 'https://myinstance.mycozy.cloud/auth/authorize',
-			hint: 'Format: instance-url + "/auth/authorize". Example → https://myinstance.mycozy.cloud/auth/authorize',
 		},
 		{
 			displayName: 'Access Token URL',
 			name: 'accessTokenUrl',
-			type: 'string',
-			default: '',
-			required: true,
-			placeholder: 'https://myinstance.mycozy.cloud/auth/access_token',
-			hint: 'Format: instance-url + "/auth/access_token". Example → https://myinstance.mycozy.cloud/auth/access_token',
+			type: 'hidden',
+			default: '={{$self["instanceUrl"]}}/auth/access_token',
+			required: true
 		},
 		{
 			displayName: 'Auth URI Query Parameters',
